@@ -1,0 +1,12 @@
+# See backend/.gitignore and frontend/.gitignore for specific ignores
+
+# General
+.DS_Store
+Thumbs.db
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

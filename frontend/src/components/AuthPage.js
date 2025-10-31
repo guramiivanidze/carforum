@@ -137,9 +137,12 @@ function AuthPage() {
       const authCard = document.querySelector('.auth-card');
       authCard.classList.add('success-animation');
       
+      // Get the redirect path from location state, default to home
+      const from = location.state?.from || '/';
+      
       setTimeout(() => {
         setIsLoading(false);
-        navigate('/');
+        navigate(from);
       }, 800);
     } catch (error) {
       setIsLoading(false);
@@ -174,9 +177,12 @@ function AuthPage() {
       const authCard = document.querySelector('.auth-card');
       authCard.classList.add('success-animation');
       
+      // Get the redirect path from location state, default to home
+      const from = location.state?.from || '/';
+      
       setTimeout(() => {
         setIsLoading(false);
-        navigate('/');
+        navigate(from);
       }, 800);
     } catch (error) {
       setIsLoading(false);

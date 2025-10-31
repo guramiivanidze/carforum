@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getCategories, getTopics } from '../services/api';
 import '../styles/CategoryPage.css';
 
 function CategoryPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [category, setCategory] = useState(null);
   const [topics, setTopics] = useState([]);
   const [filteredTopics, setFilteredTopics] = useState([]);
@@ -215,7 +216,7 @@ function CategoryPage() {
         {/* Right Sidebar */}
         <aside className="category-sidebar">
           {/* New Topic Button */}
-          <button className="new-topic-btn">
+          <button className="new-topic-btn" onClick={() => navigate('/create-topic')}>
             <span className="btn-icon">➕</span> New Topic
           </button>
 

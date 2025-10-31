@@ -107,13 +107,53 @@ export const getUserProfile = async (id) => {
   return response.data;
 };
 
+export const getUserReplies = async (profileId) => {
+  const response = await api.get(`/profiles/${profileId}/replies/`);
+  return response.data;
+};
+
 export const createTopic = async (topicData) => {
   const response = await api.post('/topics/', topicData);
   return response.data;
 };
 
-export const createReply = async (replyData) => {
-  const response = await api.post('/replies/', replyData);
+export const updateTopic = async (topicId, topicData) => {
+  const response = await api.put(`/topics/${topicId}/`, topicData);
+  return response.data;
+};
+
+export const createReply = async (topicId, replyData) => {
+  const response = await api.post(`/topics/${topicId}/replies/`, replyData);
+  return response.data;
+};
+
+export const likeReply = async (replyId) => {
+  const response = await api.post(`/replies/${replyId}/like/`);
+  return response.data;
+};
+
+export const getReportReasons = async () => {
+  const response = await api.get('/report-reasons/');
+  return response.data;
+};
+
+export const createReport = async (reportData) => {
+  const response = await api.post('/reports/', reportData);
+  return response.data;
+};
+
+export const bookmarkTopic = async (topicId) => {
+  const response = await api.post(`/topics/${topicId}/bookmark/`);
+  return response.data;
+};
+
+export const getUserBookmarks = async (profileId) => {
+  const response = await api.get(`/profiles/${profileId}/bookmarks/`);
+  return response.data;
+};
+
+export const getUserTopics = async (profileId) => {
+  const response = await api.get(`/profiles/${profileId}/topics/`);
   return response.data;
 };
 

@@ -8,15 +8,6 @@ function Header() {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  // Debug: Log user and profile data
-  useEffect(() => {
-    if (isAuthenticated) {
-      console.log('User:', user);
-      console.log('Profile:', profile);
-      console.log('Profile ID:', profile?.id);
-    }
-  }, [isAuthenticated, user, profile]);
-
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -46,7 +37,7 @@ function Header() {
         <nav className="nav-links">
           <Link to="/">Home</Link>
           <a href="/#categories">Categories</a>
-          <a href="#search">Search</a>
+          <Link to="/search">Search</Link>
           
           {isAuthenticated ? (
             <div className="user-menu" ref={dropdownRef}>
@@ -92,7 +83,7 @@ function Header() {
             <Link to="/login">Login / Sign Up</Link>
           )}
           
-          <span className="search-icon">🔍</span>
+          <Link to="/search" className="search-icon">🔍</Link>
         </nav>
       </div>
     </header>

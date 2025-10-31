@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getUserProfile } from '../services/api';
+import { getUserProfile, getUserReplies, getUserBookmarks, getUserTopics } from '../services/api';
 import '../styles/UserProfilePage.css';
 
 function UserProfilePage() {
@@ -10,9 +10,12 @@ function UserProfilePage() {
   const { profile: currentUserProfile } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'posts');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'topics');
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [userReplies, setUserReplies] = useState([]);
+  const [userBookmarks, setUserBookmarks] = useState([]);
+  const [userTopics, setUserTopics] = useState([]);
   const [saving, setSaving] = useState(false);
   
   // Settings form state
@@ -79,7 +82,53 @@ function UserProfilePage() {
     fetchProfile();
   }, [id, currentUserProfile]);
 
-  const getTimeAgo = (dateString) => {
+  // Fetch user replies when replies tab is active
+  useEffect(() => {
+    const fetchReplies = async () => {
+      if (activeTab === 'replies' && id) {
+        try {
+          const replies = await getUserReplies(id);
+          setUserReplies(replies);
+        } catch (err) {
+          console.error('Error fetching replies:', err);
+        }
+      }
+    };
+    
+    fetchReplies();
+  }, [activeTab, id]);
+
+  // Fetch user bookmarks when bookmarks tab is active
+  useEffect(() => {
+    const fetchBookmarks = async () => {
+      if (activeTab === 'bookmarks' && id) {
+        try {
+          const bookmarks = await getUserBookmarks(id);
+          setUserBookmarks(bookmarks);
+        } catch (err) {
+          console.error('Error fetching bookmarks:', err);
+        }
+      }
+    };
+
+    fetchBookmarks();
+  }, [activeTab, id]);
+
+  // Fetch user topics when topics tab is active
+  useEffect(() => {
+    const fetchTopics = async () => {
+      if (activeTab === 'topics' && id) {
+        try {
+          const topics = await getUserTopics(id);
+          setUserTopics(topics);
+        } catch (err) {
+          console.error('Error fetching topics:', err);
+        }
+      }
+    };
+
+    fetchTopics();
+  }, [activeTab, id]);  const getTimeAgo = (dateString) => {
     const now = new Date();
     const past = new Date(dateString);
     const diffMs = now - past;
@@ -133,47 +182,8 @@ function UserProfilePage() {
     return <div className="profile-error">Profile not found</div>;
   }
 
-  // Mock data for topics/replies - TODO: fetch from API
-  const userTopics = [
-    {
-      id: 1,
-      title: 'How to integrate Zephyr Scale with Playwright?',
-      category: 'QA Automation',
-      views: 230,
-      replies: 12,
-      likes: 4,
-      created_at: '2024-08-15T10:30:00Z'
-    },
-    {
-      id: 2,
-      title: 'Best practices for API testing with Python',
-      category: 'Testing',
-      views: 156,
-      replies: 8,
-      likes: 7,
-      created_at: '2024-09-20T14:15:00Z'
-    }
-  ];
-
-  const userReplies = [
-    {
-      id: 1,
-      topic_title: 'Deploy Django on Ubuntu',
-      content: 'Try restarting Gunicorn and checking service logs. Also make sure your virtual environment is activated properly...',
-      created_at: '2024-10-15T09:20:00Z',
-      topic_id: 5
-    },
-    {
-      id: 2,
-      topic_title: 'React Router v6 migration issues',
-      content: 'You need to replace Switch with Routes and update your Route syntax. Check the official migration guide...',
-      created_at: '2024-10-20T16:45:00Z',
-      topic_id: 8
-    }
-  ];
-
   const userActivity = [
-    { type: 'joined', text: 'Joined the forum', date: profile.user.date_joined },
+    { type: 'joined', text: 'Joined the forum', date: profile?.user?.date_joined },
     { type: 'badge', text: 'Earned "Problem Solver" badge', date: '2024-05-10T10:00:00Z' },
     { type: 'post', text: 'Posted new topic', title: 'How to integrate Zephyr Scale', date: '2024-08-15T10:30:00Z' },
     { type: 'like', text: 'Received 5 likes on a post', date: '2024-09-01T14:20:00Z' }
@@ -246,11 +256,11 @@ function UserProfilePage() {
       {/* Stats Row */}
       <div className="profile-stats-row">
         <div className="stat-box">
-          <div className="stat-number">{profile.topics_count || 102}</div>
-          <div className="stat-label">Posts</div>
+          <div className="stat-number">{profile.topics_count || 0}</div>
+          <div className="stat-label">Topics</div>
         </div>
         <div className="stat-box">
-          <div className="stat-number">{profile.replies_count || 345}</div>
+          <div className="stat-number">{profile.replies_count || 0}</div>
           <div className="stat-label">Replies</div>
         </div>
         <div className="stat-box">
@@ -341,10 +351,10 @@ function UserProfilePage() {
           {/* Navigation Tabs */}
           <div className="profile-tabs">
             <button
-              className={`profile-tab ${activeTab === 'posts' ? 'active' : ''}`}
-              onClick={() => setActiveTab('posts')}
+              className={`profile-tab ${activeTab === 'topics' ? 'active' : ''}`}
+              onClick={() => setActiveTab('topics')}
             >
-              Posts
+              Topics
             </button>
             <button
               className={`profile-tab ${activeTab === 'replies' ? 'active' : ''}`}
@@ -382,59 +392,127 @@ function UserProfilePage() {
 
           {/* Tab Content */}
           <div className="profile-tab-content">
-            {/* Posts Tab */}
-            {activeTab === 'posts' && (
-              <div className="posts-list">
-                {userTopics.map((topic) => (
-                  <Link to={`/topic/${topic.id}`} key={topic.id} className="user-topic-card">
-                    <h3 className="user-topic-title">{topic.title}</h3>
-                    <div className="user-topic-meta">
-                      <span className="topic-category-tag">{topic.category}</span>
-                      <span className="topic-date">
-                        📅 Posted: {getTimeAgo(topic.created_at)}
-                      </span>
-                    </div>
-                    <div className="user-topic-stats">
-                      <span className="topic-stat">👁 {topic.views}</span>
-                      <span className="topic-stat">💬 {topic.replies}</span>
-                      <span className="topic-stat">👍 {topic.likes}</span>
-                    </div>
-                  </Link>
-                ))}
+            {/* Topics Tab */}
+            {activeTab === 'topics' && (
+              <div className="topics-list">
+                {userTopics.length > 0 ? (
+                  userTopics.map((topic) => (
+                    <Link to={`/topic/${topic.id}`} key={topic.id} className="user-topic-card">
+                      <h3 className="user-topic-title">{topic.title}</h3>
+                      <div className="user-topic-meta">
+                        <span className="topic-category-tag">{topic.category.title}</span>
+                        <span className="topic-date">
+                          📅 Posted: {getTimeAgo(topic.created_at)}
+                        </span>
+                      </div>
+                      <div className="user-topic-stats">
+                        <span className="topic-stat">👁 {topic.views}</span>
+                        <span className="topic-stat">💬 {topic.replies_count}</span>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <div className="empty-icon">�</div>
+                    <h3>No topics yet</h3>
+                    <p>This user hasn't created any topics</p>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Replies Tab */}
             {activeTab === 'replies' && (
               <div className="replies-list">
-                {userReplies.map((reply) => (
-                  <div key={reply.id} className="user-reply-card">
-                    <div className="reply-header">
-                      <span className="reply-in-text">Replied in</span>
-                      <Link to={`/topic/${reply.topic_id}`} className="reply-topic-link">
-                        {reply.topic_title}
-                      </Link>
+                {userReplies.length > 0 ? (
+                  userReplies.map((reply) => (
+                    <div 
+                      key={reply.id} 
+                      className={`user-reply-card ${reply.resolved_report ? 'reported-reply' : ''}`}
+                    >
+                      {reply.resolved_report && (
+                        <div className="report-banner">
+                          <span className="report-icon">⚠️</span>
+                          <div className="report-info">
+                            <strong>This reply was reported and hidden</strong>
+                            <div className="report-reason">
+                              <strong>Reason:</strong> {reply.resolved_report.reason}
+                            </div>
+                            {reply.resolved_report.additional_info && (
+                              <div className="report-details">
+                                <strong>Details:</strong> {reply.resolved_report.additional_info}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <div className="reply-header">
+                        <span className="reply-in-text">Replied in</span>
+                        <Link to={`/topic/${reply.topic}`} className="reply-topic-link">
+                          Topic #{reply.topic}
+                        </Link>
+                      </div>
+                      <p className="reply-excerpt">"{reply.content}"</p>
+                      <div className="reply-footer">
+                        <span className="reply-date">{getTimeAgo(reply.created_at)}</span>
+                        <Link to={`/topic/${reply.topic}`} className="view-thread-btn">
+                          View full thread →
+                        </Link>
+                      </div>
                     </div>
-                    <p className="reply-excerpt">"{reply.content}"</p>
-                    <div className="reply-footer">
-                      <span className="reply-date">{getTimeAgo(reply.created_at)}</span>
-                      <Link to={`/topic/${reply.topic_id}`} className="view-thread-btn">
-                        View full thread →
-                      </Link>
-                    </div>
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <div className="empty-icon">💬</div>
+                    <h3>No replies yet</h3>
+                    <p>This user hasn't posted any replies</p>
                   </div>
-                ))}
+                )}
               </div>
             )}
 
             {/* Bookmarks Tab */}
             {activeTab === 'bookmarks' && (
               <div className="bookmarks-list">
-                <div className="empty-state">
-                  <div className="empty-icon">🔖</div>
-                  <h3>No bookmarks yet</h3>
-                  <p>Save topics to read them later</p>
-                </div>
+                {userBookmarks.length > 0 ? (
+                  userBookmarks.map((bookmark) => (
+                    <Link to={`/topic/${bookmark.topic_details.id}`} key={bookmark.id} className="bookmark-card">
+                      <div className="bookmark-ribbon">
+                        <span className="bookmark-icon">🔖</span>
+                      </div>
+                      <div className="bookmark-content">
+                        <h3 className="bookmark-title">{bookmark.topic_details.title}</h3>
+                        <div className="bookmark-meta">
+                          <span className="bookmark-category-tag">
+                            {bookmark.topic_details.category.title}
+                          </span>
+                          <span className="bookmark-date">
+                            {getTimeAgo(bookmark.created_at)}
+                          </span>
+                        </div>
+                        <div className="bookmark-stats">
+                          <span className="bookmark-stat">
+                            <span className="stat-icon">👁</span>
+                            <span className="stat-value">{bookmark.topic_details.views}</span>
+                          </span>
+                          <span className="bookmark-stat">
+                            <span className="stat-icon">💬</span>
+                            <span className="stat-value">{bookmark.topic_details.replies_count}</span>
+                          </span>
+                          <span className="bookmark-author">
+                            by {bookmark.topic_details.author.username}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <div className="empty-icon">🔖</div>
+                    <h3>No bookmarks yet</h3>
+                    <p>Save topics to read them later</p>
+                  </div>
+                )}
               </div>
             )}
 

@@ -1,28 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { getTopics } from '../services/api';
 
-function TopicsSection() {
-  const [topics, setTopics] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchTopics = async () => {
-      try {
-        const data = await getTopics();
-        setTopics(data);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching topics:', err);
-        setError('Failed to load topics');
-        setLoading(false);
-      }
-    };
-
-    fetchTopics();
-  }, []);
-
+function TopicsSection({ topics, loading }) {
   const getTimeAgo = (dateString) => {
     const now = new Date();
     const updated = new Date(dateString);
@@ -41,15 +20,6 @@ function TopicsSection() {
       <section className="topics-section">
         <h2>Latest Topics</h2>
         <div>Loading topics...</div>
-      </section>
-    );
-  }
-
-  if (error) {
-    return (
-      <section className="topics-section">
-        <h2>Latest Topics</h2>
-        <div style={{ color: 'red' }}>{error}</div>
       </section>
     );
   }

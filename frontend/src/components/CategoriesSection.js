@@ -1,28 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCategories } from '../services/api';
 
-function CategoriesSection() {
+function CategoriesSection({ categories, loading }) {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const data = await getCategories();
-        setCategories(data);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching categories:', err);
-        setError('Failed to load categories');
-        setLoading(false);
-      }
-    };
-
-    fetchCategories();
-  }, []);
 
   const handleCategoryClick = (categoryId) => {
     navigate(`/category/${categoryId}`);
@@ -33,15 +13,6 @@ function CategoriesSection() {
       <section className="categories-section">
         <h2>Categories</h2>
         <div>Loading categories...</div>
-      </section>
-    );
-  }
-
-  if (error) {
-    return (
-      <section className="categories-section">
-        <h2>Categories</h2>
-        <div style={{ color: 'red' }}>{error}</div>
       </section>
     );
   }

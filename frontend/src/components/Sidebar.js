@@ -1,31 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { getTopMembers, getTopics } from '../services/api';
 
-function Sidebar() {
-  const [topMembers, setTopMembers] = useState([]);
-  const [popularTopics, setPopularTopics] = useState([]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch top members
-        const membersData = await getTopMembers();
-        setTopMembers(membersData.slice(0, 5)); // Get top 5 members
-
-        // Fetch topics and sort by replies
-        const topicsData = await getTopics();
-        const sortedByReplies = [...topicsData]
-          .sort((a, b) => b.replies_count - a.replies_count)
-          .slice(0, 3);
-        setPopularTopics(sortedByReplies);
-      } catch (err) {
-        console.error('Error fetching sidebar data:', err);
-      }
-    };
-
-    fetchData();
-  }, []);
+function Sidebar({ topics, topMembers }) {
+  // Calculate popular topics from the topics prop
+  const popularTopics = useMemo(() => {
+    if (!topics || topics.length === 0) return [];
+    return [...topics]
+      .sort((a, b) => b.replies_count - a.replies_count)
+      .slice(0, 3);
+  }, [topics]);
 
   const getBadgeColor = (index) => {
     const colors = ['purple', 'blue', 'blue', 'blue', 'blue'];
@@ -38,10 +21,12 @@ function Sidebar() {
         <h3>Popular Topics</h3>
         {popularTopics.length > 0 ? (
           popularTopics.map((topic) => (
-            <div key={topic.id} className="popular-topic">
-              <div className="popular-topic-title">🔥 {topic.title}</div>
-              <div className="popular-topic-stats">{topic.replies_count} replies</div>
-            </div>
+            <Link to={`/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div className="popular-topic">
+                <div className="popular-topic-title">🔥 {topic.title}</div>
+                <div className="popular-topic-stats">{topic.replies_count} replies</div>
+              </div>
+            </Link>
           ))
         ) : (
           <div>Loading...</div>
@@ -66,8 +51,6 @@ function Sidebar() {
           <div>Loading...</div>
         )}
       </div>
-
-      <button className="new-topic-btn">Start New Topic</button>
     </aside>
   );
 }

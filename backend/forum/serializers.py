@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
-    Category, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
-    TopicImage, Poll, PollOption, PollVote
+    Category, CategoryRule, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
+    TopicImage, Poll, PollOption, PollVote, Tag
 )
 
 
@@ -15,12 +15,27 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'avatar', 'points', 'date_joined']
 
 
+class CategoryRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CategoryRule
+        fields = ['id', 'title', 'description', 'order', 'is_active', 'created_at']
+
+
 class CategorySerializer(serializers.ModelSerializer):
     topics_count = serializers.ReadOnlyField()
+    rules = CategoryRuleSerializer(many=True, read_only=True)
     
     class Meta:
         model = Category
-        fields = ['id', 'icon', 'title', 'description', 'topics_count', 'created_at']
+        fields = ['id', 'icon', 'title', 'description', 'topics_count', 'rules', 'created_at']
+
+
+class TagSerializer(serializers.ModelSerializer):
+    usage_count = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Tag
+        fields = ['id', 'name', 'slug', 'usage_count', 'created_at']
 
 
 class ReplySerializer(serializers.ModelSerializer):
@@ -165,12 +180,24 @@ class TopicSerializer(serializers.ModelSerializer):
     replies_count = serializers.ReadOnlyField()
     images = TopicImageSerializer(many=True, read_only=True)
     poll = PollSerializer(read_only=True)
+    tags = serializers.SerializerMethodField()
+    tag_ids = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=Tag.objects.all(),
+        write_only=True,
+        required=False,
+        source='tags'
+    )
     
     class Meta:
         model = Topic
         fields = ['id', 'title', 'author', 'category', 'category_name', 
-                  'content', 'tags', 'replies_count', 'views', 'images', 'poll', 'created_at', 'updated_at']
+                  'content', 'tags', 'tag_ids', 'replies_count', 'views', 'images', 'poll', 'created_at', 'updated_at']
         read_only_fields = ['author', 'views']
+    
+    def get_tags(self, obj):
+        """Return tag names as a list of strings for backward compatibility"""
+        return [tag.name for tag in obj.tags.all()]
 
 
 class TopicDetailSerializer(serializers.ModelSerializer):
@@ -181,11 +208,16 @@ class TopicDetailSerializer(serializers.ModelSerializer):
     user_has_bookmarked = serializers.SerializerMethodField()
     images = TopicImageSerializer(many=True, read_only=True)
     poll = PollSerializer(read_only=True)
+    tags = serializers.SerializerMethodField()
     
     class Meta:
         model = Topic
         fields = ['id', 'title', 'author', 'category', 'content', 'tags',
                   'replies', 'replies_count', 'views', 'images', 'poll', 'created_at', 'updated_at', 'user_has_bookmarked']
+    
+    def get_tags(self, obj):
+        """Return tag names as a list of strings for backward compatibility"""
+        return [tag.name for tag in obj.tags.all()]
     
     def get_user_has_bookmarked(self, obj):
         request = self.context.get('request')

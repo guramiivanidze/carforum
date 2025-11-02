@@ -6,12 +6,12 @@ from django.contrib.auth.models import User
 from django.db.models import Q, Count
 from .models import (
     Category, Topic, Reply, UserProfile, ReportReason, Report, Bookmark, 
-    Poll, PollOption, PollVote, TopicImage
+    Poll, PollOption, PollVote, TopicImage, Tag
 )
 from .serializers import (
     CategorySerializer, TopicSerializer, TopicDetailSerializer,
     ReplySerializer, UserProfileSerializer, ReportReasonSerializer, ReportSerializer, 
-    BookmarkSerializer, PollSerializer
+    BookmarkSerializer, PollSerializer, TagSerializer
 )
 from .pagination import CustomPageNumberPagination
 from gamification.services import GamificationService
@@ -44,6 +44,23 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+class TagViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for tags"""
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    
+    @action(detail=False, methods=['get'])
+    def popular(self, request):
+        """Get most popular tags by usage count"""
+        tags = Tag.objects.all()
+        # Sort by usage_count (property)
+        sorted_tags = sorted(tags, key=lambda tag: tag.usage_count, reverse=True)
+        # Limit to top 10
+        top_tags = sorted_tags[:10]
+        serializer = self.get_serializer(top_tags, many=True)
+        return Response(serializer.data)
+
+
 class TopicViewSet(viewsets.ModelViewSet):
     """API endpoint for topics"""
     queryset = Topic.objects.all()
@@ -69,13 +86,25 @@ class TopicViewSet(viewsets.ModelViewSet):
             # Handle tags (can be from FormData or JSON)
             if hasattr(request.data, 'getlist'):
                 # FormData request
-                tags = request.data.getlist('tags')
+                tag_names = request.data.getlist('tags')
             else:
                 # JSON request
-                tags = request.data.get('tags', [])
+                tag_names = request.data.get('tags', [])
             
-            if tags:
-                topic_data['tags'] = tags
+            # Convert tag names to Tag objects (create if needed)
+            tag_objects = []
+            if tag_names:
+                from django.utils.text import slugify
+                for tag_name in tag_names:
+                    if tag_name and tag_name.strip():
+                        tag, created = Tag.objects.get_or_create(
+                            name=tag_name.strip().lower(),
+                            defaults={'slug': slugify(tag_name.strip())}
+                        )
+                        tag_objects.append(tag.id)
+            
+            if tag_objects:
+                topic_data['tag_ids'] = tag_objects
             
             serializer = self.get_serializer(data=topic_data)
             serializer.is_valid(raise_exception=True)
@@ -177,13 +206,25 @@ class TopicViewSet(viewsets.ModelViewSet):
             # Handle tags (can be from FormData or JSON)
             if hasattr(request.data, 'getlist'):
                 # FormData request
-                tags = request.data.getlist('tags')
+                tag_names = request.data.getlist('tags')
             else:
                 # JSON request
-                tags = request.data.get('tags', [])
+                tag_names = request.data.get('tags', [])
             
-            if tags:
-                topic_data['tags'] = tags
+            # Convert tag names to Tag objects (create if needed)
+            tag_objects = []
+            if tag_names:
+                from django.utils.text import slugify
+                for tag_name in tag_names:
+                    if tag_name and tag_name.strip():
+                        tag, created = Tag.objects.get_or_create(
+                            name=tag_name.strip().lower(),
+                            defaults={'slug': slugify(tag_name.strip())}
+                        )
+                        tag_objects.append(tag.id)
+            
+            if tag_objects:
+                topic_data['tag_ids'] = tag_objects
             
             serializer = self.get_serializer(instance, data=topic_data, partial=partial)
             serializer.is_valid(raise_exception=True)

@@ -1,14 +1,39 @@
 from django.contrib import admin
 from .models import (
-    Category, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
+    Category, CategoryRule, Tag, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
     TopicImage, Poll, PollOption, PollVote
 )
+
+
+class CategoryRuleInline(admin.TabularInline):
+    model = CategoryRule
+    extra = 1
+    fields = ['title', 'description', 'order', 'is_active']
+    ordering = ['order', 'created_at']
 
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ['title', 'icon', 'topics_count', 'created_at']
     search_fields = ['title', 'description']
+    inlines = [CategoryRuleInline]
+
+
+@admin.register(CategoryRule)
+class CategoryRuleAdmin(admin.ModelAdmin):
+    list_display = ['title', 'category', 'order', 'is_active', 'created_at']
+    list_filter = ['is_active', 'category', 'created_at']
+    search_fields = ['title', 'description', 'category__title']
+    list_editable = ['order', 'is_active']
+    ordering = ['category', 'order', 'created_at']
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug', 'usage_count', 'created_at']
+    search_fields = ['name', 'slug']
+    prepopulated_fields = {'slug': ('name',)}
+    readonly_fields = ['created_at']
 
 
 @admin.register(Topic)

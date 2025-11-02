@@ -21,13 +21,50 @@ class Category(models.Model):
         return self.topics.count()
 
 
+class CategoryRule(models.Model):
+    """Rules for categories"""
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='rules')
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['order', 'created_at']
+        verbose_name = 'Category Rule'
+        verbose_name_plural = 'Category Rules'
+    
+    def __str__(self):
+        return f"{self.category.title} - {self.title}"
+
+
+class Tag(models.Model):
+    """Tags for topics"""
+    name = models.CharField(max_length=50, unique=True)
+    slug = models.SlugField(max_length=50, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+    
+    @property
+    def usage_count(self):
+        """Count how many topics use this tag"""
+        return self.topics.count()
+
+
 class Topic(models.Model):
     """Forum topics/posts"""
     title = models.CharField(max_length=200)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='topics')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='topics')
     content = models.TextField(blank=True)
-    tags = models.JSONField(default=list, blank=True)
+    tags = models.ManyToManyField(Tag, related_name='topics', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     views = models.IntegerField(default=0)

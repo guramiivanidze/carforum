@@ -1,12 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    CategoryViewSet, TopicViewSet, ReplyViewSet, UserProfileViewSet, 
+    CategoryViewSet, TagViewSet, TopicViewSet, ReplyViewSet, UserProfileViewSet, 
     ReportReasonViewSet, ReportViewSet, search, vote_poll
 )
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet)
+router.register(r'tags', TagViewSet)
 router.register(r'topics', TopicViewSet)
 router.register(r'replies', ReplyViewSet)
 router.register(r'profiles', UserProfileViewSet)

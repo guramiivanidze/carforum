@@ -1,19 +1,47 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.models import User
-from .models import Category, Topic, Reply, UserProfile, ReportReason, Report, Bookmark
+from django.db.models import Q, Count
+from .models import (
+    Category, Topic, Reply, UserProfile, ReportReason, Report, Bookmark, 
+    Poll, PollOption, PollVote, TopicImage
+)
 from .serializers import (
     CategorySerializer, TopicSerializer, TopicDetailSerializer,
-    ReplySerializer, UserProfileSerializer, ReportReasonSerializer, ReportSerializer, BookmarkSerializer
+    ReplySerializer, UserProfileSerializer, ReportReasonSerializer, ReportSerializer, 
+    BookmarkSerializer, PollSerializer
 )
+from .pagination import CustomPageNumberPagination
+from gamification.services import GamificationService
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
     """API endpoint for categories"""
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    
+    @action(detail=True, methods=['get'])
+    def topics(self, request, pk=None):
+        """Get paginated topics for this category"""
+        category = self.get_object()
+        
+        # Get topics for this category, ordered by creation date (newest first)
+        topics = Topic.objects.filter(category=category).select_related(
+            'author', 'author__profile', 'category'
+        ).order_by('-created_at')
+        
+        # Apply pagination
+        paginator = CustomPageNumberPagination()
+        page = paginator.paginate_queryset(topics, request)
+        
+        if page is not None:
+            serializer = TopicSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        
+        serializer = TopicSerializer(topics, many=True)
+        return Response(serializer.data)
 
 
 class TopicViewSet(viewsets.ModelViewSet):
@@ -27,6 +55,207 @@ class TopicViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        """Create topic with images and poll"""
+        try:
+            # Create the topic
+            topic_data = {
+                'title': request.data.get('title'),
+                'content': request.data.get('content'),
+                'category': request.data.get('category'),
+            }
+            
+            # Handle tags (can be from FormData or JSON)
+            if hasattr(request.data, 'getlist'):
+                # FormData request
+                tags = request.data.getlist('tags')
+            else:
+                # JSON request
+                tags = request.data.get('tags', [])
+            
+            if tags:
+                topic_data['tags'] = tags
+            
+            serializer = self.get_serializer(data=topic_data)
+            serializer.is_valid(raise_exception=True)
+            topic = serializer.save(author=request.user)
+            
+            # Handle images (check if FormData or JSON)
+            if hasattr(request.data, 'getlist'):
+                # FormData request
+                images = request.FILES.getlist('images')
+                captions = request.data.getlist('image_captions')
+                orders = request.data.getlist('image_orders')
+                
+                for idx, image_file in enumerate(images):
+                    TopicImage.objects.create(
+                        topic=topic,
+                        image=image_file,
+                        caption=captions[idx] if idx < len(captions) else '',
+                        order=int(orders[idx]) if idx < len(orders) else idx
+                    )
+            
+            # Handle poll (check if FormData or JSON)
+            poll_question = request.data.get('poll_question')
+            if poll_question:
+                poll = Poll.objects.create(
+                    topic=topic,
+                    question=poll_question
+                )
+                
+                # Get poll options
+                if hasattr(request.data, 'getlist'):
+                    # FormData request
+                    poll_options = request.data.getlist('poll_options')
+                    poll_orders = request.data.getlist('poll_option_orders')
+                else:
+                    # JSON request
+                    poll_options = request.data.get('poll_options', [])
+                    poll_orders = request.data.get('poll_option_orders', [])
+                
+                for idx, option_text in enumerate(poll_options):
+                    if option_text and option_text.strip():  # Only create if option has text
+                        PollOption.objects.create(
+                            poll=poll,
+                            text=option_text,
+                            order=int(poll_orders[idx]) if idx < len(poll_orders) else idx
+                        )
+            
+            # Return the complete topic with images and poll
+            # Reload topic with related objects
+            from django.db.models import Prefetch
+            topic = Topic.objects.prefetch_related(
+                'images',
+                'poll__options__votes'
+            ).select_related('author__profile', 'category').get(id=topic.id)
+            
+            # Track gamification for topic creation
+            gamification_result = GamificationService.track_topic_created(request.user)
+            
+            headers = self.get_success_headers(serializer.data)
+            topic_serializer = TopicDetailSerializer(topic, context={'request': request})
+            response_data = topic_serializer.data
+            
+            # Add gamification data to response
+            response_data['gamification'] = gamification_result
+            
+            print(f"Topic created with ID: {topic.id}")
+            print(f"Images count: {topic.images.count()}")
+            print(f"Has poll: {hasattr(topic, 'poll')}")
+            if hasattr(topic, 'poll'):
+                print(f"Poll options count: {topic.poll.options.count()}")
+            print(f"Response images: {len(response_data.get('images', []))}")
+            print(f"Response poll: {response_data.get('poll')}")
+            return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            import traceback
+            print(f"Error creating topic: {str(e)}")
+            print(traceback.format_exc())
+            raise
+    
+    def update(self, request, *args, **kwargs):
+        """Update topic with images and poll"""
+        try:
+            partial = kwargs.pop('partial', False)
+            instance = self.get_object()
+            
+            # Check if user is the author
+            if instance.author != request.user:
+                return Response(
+                    {'detail': 'You do not have permission to edit this topic.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Prepare topic data
+            topic_data = {
+                'title': request.data.get('title'),
+                'content': request.data.get('content'),
+                'category': request.data.get('category'),
+            }
+            
+            # Handle tags (can be from FormData or JSON)
+            if hasattr(request.data, 'getlist'):
+                # FormData request
+                tags = request.data.getlist('tags')
+            else:
+                # JSON request
+                tags = request.data.get('tags', [])
+            
+            if tags:
+                topic_data['tags'] = tags
+            
+            serializer = self.get_serializer(instance, data=topic_data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            topic = serializer.save()
+            
+            # Handle images - only process new images
+            if hasattr(request.data, 'getlist'):
+                # FormData request
+                images = request.FILES.getlist('images')
+                captions = request.data.getlist('image_captions')
+                orders = request.data.getlist('image_orders')
+                
+                for idx, image_file in enumerate(images):
+                    # Only create if there's an actual file (not null)
+                    if image_file:
+                        TopicImage.objects.create(
+                            topic=topic,
+                            image=image_file,
+                            caption=captions[idx] if idx < len(captions) else '',
+                            order=int(orders[idx]) if idx < len(orders) else idx
+                        )
+            
+            # Handle poll - update or create
+            poll_question = request.data.get('poll_question')
+            if poll_question:
+                # Check if poll exists
+                if hasattr(topic, 'poll'):
+                    # Update existing poll
+                    poll = topic.poll
+                    poll.question = poll_question
+                    poll.save()
+                    # Delete old options
+                    poll.options.all().delete()
+                else:
+                    # Create new poll
+                    poll = Poll.objects.create(
+                        topic=topic,
+                        question=poll_question
+                    )
+                
+                # Get poll options
+                if hasattr(request.data, 'getlist'):
+                    # FormData request
+                    poll_options = request.data.getlist('poll_options')
+                    poll_orders = request.data.getlist('poll_option_orders')
+                else:
+                    # JSON request
+                    poll_options = request.data.get('poll_options', [])
+                    poll_orders = request.data.get('poll_option_orders', [])
+                
+                for idx, option_text in enumerate(poll_options):
+                    if option_text and option_text.strip():
+                        PollOption.objects.create(
+                            poll=poll,
+                            text=option_text,
+                            order=int(poll_orders[idx]) if idx < len(poll_orders) else idx
+                        )
+            
+            # Return the updated topic with images and poll
+            from django.db.models import Prefetch
+            topic = Topic.objects.prefetch_related(
+                'images',
+                'poll__options__votes'
+            ).select_related('author__profile', 'category').get(id=topic.id)
+            
+            topic_serializer = TopicDetailSerializer(topic, context={'request': request})
+            return Response(topic_serializer.data)
+        except Exception as e:
+            import traceback
+            print(f"Error updating topic: {str(e)}")
+            print(traceback.format_exc())
+            raise
     
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -70,9 +299,14 @@ class TopicViewSet(viewsets.ModelViewSet):
         else:
             # Bookmark
             Bookmark.objects.create(user=user, topic=topic)
+            
+            # Track gamification for bookmark creation
+            gamification_result = GamificationService.track_bookmark_created(user)
+            
             return Response({
                 'status': 'bookmarked',
-                'user_has_bookmarked': True
+                'user_has_bookmarked': True,
+                'gamification': gamification_result
             }, status=status.HTTP_201_CREATED)
 
 
@@ -80,9 +314,22 @@ class ReplyViewSet(viewsets.ModelViewSet):
     """API endpoint for replies"""
     queryset = Reply.objects.all()
     serializer_class = ReplySerializer
+    permission_classes = [IsAuthenticated]
     
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        """Create reply with gamification tracking"""
+        response = super().create(request, *args, **kwargs)
+        
+        # Track gamification for reply creation
+        gamification_result = GamificationService.track_reply_created(request.user)
+        
+        # Add gamification data to response
+        response.data['gamification'] = gamification_result
+        
+        return response
     
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -95,6 +342,13 @@ class ReplyViewSet(viewsets.ModelViewSet):
         reply = self.get_object()
         user = request.user
         
+        # Prevent users from liking their own replies
+        if reply.author == user:
+            return Response(
+                {'error': 'You cannot like your own reply.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         if reply.likes.filter(id=user.id).exists():
             # Unlike
             reply.likes.remove(user)
@@ -106,17 +360,56 @@ class ReplyViewSet(viewsets.ModelViewSet):
         else:
             # Like
             reply.likes.add(user)
+            
+            # Track gamification for the reply author receiving a like
+            gamification_result = GamificationService.track_like_received(reply.author)
+            
             return Response({
                 'status': 'liked',
                 'likes_count': reply.likes_count,
-                'user_has_liked': True
+                'user_has_liked': True,
+                'gamification': gamification_result
             })
+    
+    def destroy(self, request, *args, **kwargs):
+        """Delete a reply - only the author can delete their own reply"""
+        reply = self.get_object()
+        
+        # Check if the user is the author of the reply
+        if reply.author != request.user:
+            return Response(
+                {'error': 'You can only delete your own replies.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Perform the deletion
+        reply.delete()
+        
+        return Response(
+            {'message': 'Reply deleted successfully.'},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
 class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
-    """API endpoint for user profiles"""
+    """API endpoint for user profiles - lookup by user ID"""
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
+    
+    def get_object(self):
+        """Get profile by user ID instead of profile ID"""
+        user_id = self.kwargs.get('pk')
+        from django.contrib.auth.models import User
+        
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            from rest_framework.exceptions import NotFound
+            raise NotFound('User not found')
+        
+        # Get or create profile for this user
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        return profile
     
     @action(detail=False, methods=['get'])
     def top_members(self, request):
@@ -175,11 +468,187 @@ class ReportViewSet(viewsets.ModelViewSet):
         serializer.save(reporter=self.request.user)
     
     def create(self, request, *args, **kwargs):
-        # Check if user already reported this reply
+        # Get the reply being reported
         reply_id = request.data.get('reply')
+        
+        # Check if reply exists and prevent self-reporting
+        try:
+            reply = Reply.objects.get(id=reply_id)
+            if reply.author == request.user:
+                return Response(
+                    {'error': 'You cannot report your own reply.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except Reply.DoesNotExist:
+            return Response(
+                {'error': 'Reply not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if user already reported this reply
         if Report.objects.filter(reply_id=reply_id, reporter=request.user).exists():
             return Response(
                 {'error': 'You have already reported this reply.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         return super().create(request, *args, **kwargs)
+
+
+@api_view(['GET'])
+def search(request):
+    """
+    Search across topics, users, and categories
+    Query params:
+    - q: search query (required)
+    - filter: 'all', 'topics', 'users', 'categories' (default: 'all')
+    - category: filter by category ID
+    - min_replies: minimum number of replies
+    - sort: 'relevance', 'recent', 'popular' (default: 'relevance')
+    """
+    query = request.query_params.get('q', '').strip()
+    filter_type = request.query_params.get('filter', 'all')
+    category_id = request.query_params.get('category')
+    min_replies = request.query_params.get('min_replies')
+    sort_by = request.query_params.get('sort', 'relevance')
+    
+    # Convert string "null" to None
+    if category_id in ['null', 'None', '']:
+        category_id = None
+    if min_replies in ['null', 'None', '']:
+        min_replies = None
+    
+    if not query:
+        return Response({
+            'topics': [],
+            'users': [],
+            'categories': [],
+            'total': 0
+        })
+    
+    results = {
+        'topics': [],
+        'users': [],
+        'categories': [],
+        'total': 0
+    }
+    
+    # Search Topics
+    if filter_type in ['all', 'topics']:
+        topics_query = Topic.objects.select_related(
+            'author', 'author__profile', 'category'
+        ).filter(
+            Q(title__icontains=query) | 
+            Q(content__icontains=query)
+        )
+        
+        # Apply category filter
+        if category_id:
+            try:
+                topics_query = topics_query.filter(category_id=int(category_id))
+            except (ValueError, TypeError):
+                pass  # Skip invalid category_id
+        
+        # Apply min replies filter
+        if min_replies:
+            try:
+                topics_query = topics_query.annotate(
+                    total_replies=Count('replies')
+                ).filter(total_replies__gte=int(min_replies))
+            except (ValueError, TypeError):
+                pass  # Skip invalid min_replies
+        
+        # Apply sorting
+        if sort_by == 'recent':
+            topics_query = topics_query.order_by('-created_at')
+        elif sort_by == 'popular':
+            topics_query = topics_query.annotate(
+                popularity=Count('replies') + Count('bookmarks')
+            ).order_by('-popularity', '-views')
+        else:  # relevance
+            # Simple relevance: title matches first, then by engagement
+            topics_query = topics_query.annotate(
+                total_replies=Count('replies')
+            ).order_by('-total_replies', '-views')
+        
+        topics = topics_query[:20]
+        results['topics'] = TopicSerializer(topics, many=True).data
+    
+    # Search Users
+    if filter_type in ['all', 'users']:
+        users = User.objects.select_related('profile').filter(
+            Q(username__icontains=query) |
+            Q(email__icontains=query) |
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query)
+        )[:10]
+        
+        results['users'] = [{
+            'id': user.id,
+            'username': user.username,
+            'email': user.email if request.user.is_staff else None,
+            'avatar': user.profile.avatar if hasattr(user, 'profile') else '👤',
+            'points': user.profile.points if hasattr(user, 'profile') else 0,
+            'bio': user.profile.bio if hasattr(user, 'profile') else '',
+        } for user in users]
+    
+    # Search Categories
+    if filter_type in ['all', 'categories']:
+        categories = Category.objects.filter(
+            Q(title__icontains=query) |
+            Q(description__icontains=query)
+        )[:10]
+        
+        results['categories'] = CategorySerializer(categories, many=True).data
+    
+    # Calculate total results
+    results['total'] = (
+        len(results['topics']) + 
+        len(results['users']) + 
+        len(results['categories'])
+    )
+    
+    return Response(results)
+
+
+@api_view(['POST'])
+def vote_poll(request, poll_id):
+    """Vote on a poll option"""
+    if not request.user.is_authenticated:
+        return Response(
+            {'error': 'Authentication required'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    try:
+        poll = Poll.objects.get(id=poll_id)
+    except Poll.DoesNotExist:
+        return Response(
+            {'error': 'Poll not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    option_id = request.data.get('option_id')
+    if not option_id:
+        return Response(
+            {'error': 'option_id is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        option = PollOption.objects.get(id=option_id, poll=poll)
+    except PollOption.DoesNotExist:
+        return Response(
+            {'error': 'Invalid poll option'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Create or update vote
+    vote, created = PollVote.objects.update_or_create(
+        poll_option__poll=poll,
+        user=request.user,
+        defaults={'poll_option': option}
+    )
+    
+    # Return updated poll data
+    serializer = PollSerializer(poll, context={'request': request})
+    return Response(serializer.data)

@@ -23,10 +23,11 @@ class Category(models.Model):
 
 class Topic(models.Model):
     """Forum topics/posts"""
-    title = models.CharField(max_length=300)
+    title = models.CharField(max_length=200)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='topics')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='topics')
     content = models.TextField(blank=True)
+    tags = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     views = models.IntegerField(default=0)
@@ -46,6 +47,7 @@ class Reply(models.Model):
     """Replies to topics"""
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='replies')
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='replies')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, related_name='child_replies', null=True, blank=True)
     content = models.TextField()
     likes = models.ManyToManyField(User, related_name='liked_replies', blank=True)
     is_hidden = models.BooleanField(default=False)
@@ -58,6 +60,10 @@ class Reply(models.Model):
     
     def __str__(self):
         return f"Reply to {self.topic.title} by {self.author.username}"
+    
+    @property
+    def replies_count(self):
+        return self.child_replies.filter(is_hidden=False).count()
     
     @property
     def likes_count(self):
@@ -128,3 +134,74 @@ class Report(models.Model):
     
     def __str__(self):
         return f"Report by {self.reporter.username} - {self.reason.title if self.reason else 'No reason'}"
+
+
+class TopicImage(models.Model):
+    """Images attached to topics"""
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='topic_images/%Y/%m/%d/')
+    caption = models.CharField(max_length=200, blank=True)
+    order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['order', 'created_at']
+    
+    def __str__(self):
+        return f"Image for {self.topic.title}"
+
+
+class Poll(models.Model):
+    """Polls attached to topics"""
+    topic = models.OneToOneField(Topic, on_delete=models.CASCADE, related_name='poll')
+    question = models.CharField(max_length=300)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Poll: {self.question}"
+    
+    @property
+    def total_votes(self):
+        return sum(option.votes_count for option in self.options.all())
+
+
+class PollOption(models.Model):
+    """Options for polls"""
+    poll = models.ForeignKey(Poll, on_delete=models.CASCADE, related_name='options')
+    text = models.CharField(max_length=200)
+    order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['order', 'created_at']
+    
+    def __str__(self):
+        return f"{self.text} ({self.votes_count} votes)"
+    
+    @property
+    def votes_count(self):
+        return self.votes.count()
+    
+    @property
+    def percentage(self):
+        total = self.poll.total_votes
+        if total == 0:
+            return 0
+        return round((self.votes_count / total) * 100, 1)
+
+
+class PollVote(models.Model):
+    """User votes on poll options"""
+    poll_option = models.ForeignKey(PollOption, on_delete=models.CASCADE, related_name='votes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='poll_votes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['poll_option', 'user']
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.username} voted for {self.poll_option.text}"
+
+        
+        self.save()

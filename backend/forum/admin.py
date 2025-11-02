@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Category, Topic, Reply, UserProfile, ReportReason, Report, Bookmark
+from .models import (
+    Category, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
+    TopicImage, Poll, PollOption, PollVote
+)
 
 
 @admin.register(Category)
@@ -80,3 +83,41 @@ class ReportAdmin(admin.ModelAdmin):
                 obj.reply.is_hidden = True
                 obj.reply.save()
         super().save_model(request, obj, form, change)
+
+
+@admin.register(TopicImage)
+class TopicImageAdmin(admin.ModelAdmin):
+    list_display = ['topic', 'caption', 'order', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['topic__title', 'caption']
+    readonly_fields = ['created_at']
+
+
+class PollOptionInline(admin.TabularInline):
+    model = PollOption
+    extra = 2
+    fields = ['text', 'order']
+
+
+@admin.register(Poll)
+class PollAdmin(admin.ModelAdmin):
+    list_display = ['question', 'topic', 'total_votes', 'created_at']
+    search_fields = ['question', 'topic__title']
+    readonly_fields = ['created_at', 'total_votes']
+    inlines = [PollOptionInline]
+
+
+@admin.register(PollOption)
+class PollOptionAdmin(admin.ModelAdmin):
+    list_display = ['text', 'poll', 'votes_count', 'percentage', 'order']
+    list_filter = ['poll']
+    search_fields = ['text', 'poll__question']
+    readonly_fields = ['votes_count', 'percentage', 'created_at']
+
+
+@admin.register(PollVote)
+class PollVoteAdmin(admin.ModelAdmin):
+    list_display = ['user', 'poll_option', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['user__username', 'poll__option__text']
+    readonly_fields = ['created_at']

@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from .serializers import UserSerializer, UserProfileSerializer
 from .models import UserProfile
+from gamification.services import GamificationService
 
 
 @api_view(['POST'])
@@ -153,6 +154,9 @@ def login(request):
         if not hasattr(authenticated_user, 'profile'):
             UserProfile.objects.create(user=authenticated_user)
 
+        # Update daily streak and track gamification
+        streak_result = GamificationService.update_daily_streak(authenticated_user)
+
         # Serialize user data
         user_serializer = UserSerializer(authenticated_user)
         profile_serializer = UserProfileSerializer(authenticated_user.profile)
@@ -164,7 +168,8 @@ def login(request):
             'tokens': {
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
-            }
+            },
+            'gamification': streak_result
         }, status=status.HTTP_200_OK)
 
     except Exception as e:

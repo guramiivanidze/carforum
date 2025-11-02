@@ -1,0 +1,151 @@
+/* XP Notification Styles */
+
+.xp-notifications-container {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.xp-notification {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 200px;
+  position: relative;
+  overflow: hidden;
+  pointer-events: all;
+  transition: all 0.3s ease;
+}
+
+.xp-notification.show {
+  animation: slideInRight 0.3s ease forwards;
+}
+
+.xp-notification.hide {
+  animation: slideOutRight 0.3s ease forwards;
+}
+
+.xp-notification::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    transparent 100%);
+  animation: shimmer 2s infinite;
+}
+
+.xp-content {
+  flex: 1;
+  z-index: 1;
+}
+
+.xp-amount {
+  font-size: 24px;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  animation: scaleIn 0.5s ease;
+}
+
+.xp-message {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+.xp-sparkles {
+  font-size: 28px;
+  animation: rotate 2s ease infinite;
+  z-index: 1;
+}
+
+/* Animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes rotate {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(180deg);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .xp-notifications-container {
+    right: 10px;
+    top: 70px;
+  }
+
+  .xp-notification {
+    min-width: 160px;
+    padding: 12px 20px;
+  }
+
+  .xp-amount {
+    font-size: 20px;
+  }
+
+  .xp-message {
+    font-size: 12px;
+  }
+
+  .xp-sparkles {
+    font-size: 24px;
+  }
+}

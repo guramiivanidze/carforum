@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getTopics, getCategories } from '../services/api';
+import { getTopics, getCategories, searchAll, getPopularTags } from '../services/api';
 import '../styles/SearchPage.css';
 
 function SearchPage() {
@@ -27,6 +27,7 @@ function SearchPage() {
   const [searchResults, setSearchResults] = useState({
     topics: [],
     users: [],
+    categories: [],
     tags: []
   });
 
@@ -66,38 +67,38 @@ function SearchPage() {
 
   const fetchInitialData = async () => {
     try {
-      const [topicsData, categoriesData] = await Promise.all([
+      const [topicsData, categoriesData, tagsData] = await Promise.all([
         getTopics(),
-        getCategories()
+        getCategories(),
+        getPopularTags()
       ]);
 
-      setAllTopics(topicsData);
-      setAllCategories(categoriesData);
+      // Handle paginated responses - extract results array if paginated
+      const allTopicsArray = topicsData.results || topicsData;
+      const allCategoriesArray = categoriesData.results || categoriesData;
+
+      setAllTopics(allTopicsArray);
+      setAllCategories(allCategoriesArray);
 
       // Calculate trending topics (high engagement recently)
-      const trending = [...topicsData]
+      const trending = [...allTopicsArray]
         .sort((a, b) => (b.replies_count + b.views * 0.1) - (a.replies_count + a.views * 0.1))
         .slice(0, 8);
       setTrendingTopics(trending);
 
       // Latest topics
-      const latest = [...topicsData]
+      const latest = [...allTopicsArray]
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 6);
       setLatestTopics(latest);
 
-      // Extract popular tags (mock for now)
-      const tags = [
-        { name: 'python', count: 245, trending: true },
-        { name: 'django', count: 189, trending: true },
-        { name: 'react', count: 167, trending: false },
-        { name: 'qa', count: 143, trending: false },
-        { name: 'selenium', count: 128, trending: false },
-        { name: 'cars', count: 98, trending: true },
-        { name: 'devops', count: 87, trending: false },
-        { name: 'javascript', count: 156, trending: false }
-      ];
-      setPopularTags(tags.sort((a, b) => b.count - a.count));
+      // Set popular tags from API
+      const tags = tagsData.map(tag => ({
+        name: tag.name,
+        count: tag.usage_count,
+        trending: tag.usage_count > 100 // Mark as trending if used more than 100 times
+      }));
+      setPopularTags(tags);
 
       // Mock top contributors
       setTopContributors([
@@ -114,48 +115,43 @@ function SearchPage() {
 
   const performSearch = async (query) => {
     if (!query.trim()) {
-      setSearchResults({ topics: [], users: [], tags: [] });
+      setSearchResults({ topics: [], users: [], tags: [], categories: [] });
       return;
     }
 
     setIsSearching(true);
-    const lowerQuery = query.toLowerCase();
 
-    // Filter topics
-    let topicResults = allTopics.filter(topic =>
-      topic.title.toLowerCase().includes(lowerQuery) ||
-      topic.content?.toLowerCase().includes(lowerQuery)
-    );
+    try {
+      // Call the backend search API
+      const searchFilters = {
+        filter: activeFilter
+      };
 
-    // Apply active filter
-    if (activeFilter === 'topics') {
-      // Already filtered
-    } else if (activeFilter === 'categories') {
-      topicResults = [];
-    } else if (activeFilter === 'users') {
-      topicResults = [];
-    } else if (activeFilter === 'tags') {
-      topicResults = [];
+      // Only add filters if they have values
+      if (filters.category) {
+        searchFilters.category = filters.category;
+      }
+      if (filters.minReplies) {
+        searchFilters.min_replies = filters.minReplies;
+      }
+      searchFilters.sort = 'relevance';
+
+      const results = await searchAll(query, searchFilters);
+      
+      setSearchResults({
+        topics: results.topics || [],
+        users: results.users || [],
+        categories: results.categories || [],
+        tags: results.tags || []  // Keep tags for compatibility
+      });
+
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults({ topics: [], users: [], tags: [], categories: [] });
+    } finally {
+      setIsSearching(false);
     }
-
-    // Filter users (mock)
-    const userResults = topContributors.filter(user =>
-      user.username.toLowerCase().includes(lowerQuery)
-    );
-
-    // Filter tags
-    const tagResults = popularTags.filter(tag =>
-      tag.name.toLowerCase().includes(lowerQuery)
-    );
-
-    setSearchResults({
-      topics: topicResults,
-      users: activeFilter === 'all' || activeFilter === 'users' ? userResults : [],
-      tags: activeFilter === 'all' || activeFilter === 'tags' ? tagResults : []
-    });
-
-    setShowSuggestions(query.length > 0);
-    setIsSearching(false);
   };
 
   const handleSearchChange = (e) => {
@@ -171,7 +167,7 @@ function SearchPage() {
   const clearSearch = () => {
     setSearchQuery('');
     setSearchParams({});
-    setSearchResults({ topics: [], users: [], tags: [] });
+    setSearchResults({ topics: [], users: [], tags: [], categories: [] });
     setShowSuggestions(false);
   };
 
@@ -190,9 +186,10 @@ function SearchPage() {
   };
 
   const hasSearchResults = searchQuery.length > 0;
-  const hasAnyResults = searchResults.topics.length > 0 || 
-                        searchResults.users.length > 0 || 
-                        searchResults.tags.length > 0;
+  const hasAnyResults = (searchResults.topics?.length > 0 || 
+                        searchResults.users?.length > 0 || 
+                        searchResults.categories?.length > 0 ||
+                        searchResults.tags?.length > 0);
 
   return (
     <div className="search-page">
@@ -225,7 +222,7 @@ function SearchPage() {
             {/* Auto-suggestions Dropdown */}
             {showSuggestions && hasAnyResults && (
               <div className="search-suggestions-dropdown">
-                {searchResults.topics.length > 0 && (
+                {searchResults.topics?.length > 0 && (
                   <div className="suggestions-section">
                     <div className="suggestions-header">Topics</div>
                     {searchResults.topics.slice(0, 3).map(topic => (
@@ -242,7 +239,7 @@ function SearchPage() {
                   </div>
                 )}
 
-                {searchResults.users.length > 0 && (
+                {searchResults.users?.length > 0 && (
                   <div className="suggestions-section">
                     <div className="suggestions-header">Users</div>
                     {searchResults.users.slice(0, 3).map(user => (
@@ -259,7 +256,7 @@ function SearchPage() {
                   </div>
                 )}
 
-                {searchResults.tags.length > 0 && (
+                {searchResults.tags?.length > 0 && (
                   <div className="suggestions-section">
                     <div className="suggestions-header">Tags</div>
                     <div className="suggestions-tags">
@@ -269,6 +266,23 @@ function SearchPage() {
                         </span>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {searchResults.categories?.length > 0 && (
+                  <div className="suggestions-section">
+                    <div className="suggestions-header">Categories</div>
+                    {searchResults.categories.slice(0, 3).map(category => (
+                      <Link
+                        key={category.id}
+                        to={`/category/${category.id}`}
+                        className="suggestion-item"
+                        onClick={() => setShowSuggestions(false)}
+                      >
+                        <span className="suggestion-icon">{category.icon}</span>
+                        <span className="suggestion-text">{category.title}</span>
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>
@@ -302,7 +316,7 @@ function SearchPage() {
             ) : (
               <>
                 {/* Topic Results */}
-                {searchResults.topics.length > 0 && (activeFilter === 'all' || activeFilter === 'topics') && (
+                {searchResults.topics?.length > 0 && (activeFilter === 'all' || activeFilter === 'topics') && (
                   <div className="search-results-section">
                     <h2 className="results-section-title">Topics ({searchResults.topics.length})</h2>
                     <div className="results-list">
@@ -325,18 +339,18 @@ function SearchPage() {
                 )}
 
                 {/* User Results */}
-                {searchResults.users.length > 0 && (activeFilter === 'all' || activeFilter === 'users') && (
+                {searchResults.users?.length > 0 && (activeFilter === 'all' || activeFilter === 'users') && (
                   <div className="search-results-section">
                     <h2 className="results-section-title">Users ({searchResults.users.length})</h2>
                     <div className="results-grid">
                       {searchResults.users.map(user => (
                         <Link key={user.id} to={`/profile/${user.id}`} className="user-result-card">
-                          <div className="user-result-avatar">{user.avatar}</div>
+                          <div className="user-result-avatar">{user.avatar || '👤'}</div>
                           <div className="user-result-info">
                             <h3 className="user-result-name">@{user.username}</h3>
-                            <p className="user-result-stats">Posts: {user.posts} | Rep: {user.reputation}</p>
+                            <p className="user-result-stats">Points: {user.points || 0}</p>
+                            {user.bio && <p className="user-result-bio">{user.bio}</p>}
                           </div>
-                          <button className="follow-user-btn">Follow</button>
                         </Link>
                       ))}
                     </div>
@@ -344,7 +358,7 @@ function SearchPage() {
                 )}
 
                 {/* Tag Results */}
-                {searchResults.tags.length > 0 && (activeFilter === 'all' || activeFilter === 'tags') && (
+                {searchResults.tags?.length > 0 && (activeFilter === 'all' || activeFilter === 'tags') && (
                   <div className="search-results-section">
                     <h2 className="results-section-title">Tags ({searchResults.tags.length})</h2>
                     <div className="results-grid">
@@ -356,6 +370,27 @@ function SearchPage() {
                             <span className="tag-trending">📈 trending</span>
                           )}
                         </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Category Results */}
+                {searchResults.categories?.length > 0 && (activeFilter === 'all' || activeFilter === 'categories') && (
+                  <div className="search-results-section">
+                    <h2 className="results-section-title">Categories ({searchResults.categories.length})</h2>
+                    <div className="results-grid">
+                      {searchResults.categories.map(category => (
+                        <Link key={category.id} to={`/category/${category.id}`} className="category-result-card">
+                          <div className="category-result-icon">{category.icon}</div>
+                          <div className="category-result-info">
+                            <h3 className="category-result-name">{category.title}</h3>
+                            <p className="category-result-desc">{category.description}</p>
+                            <p className="category-result-stats">
+                              {category.topics_count} topics
+                            </p>
+                          </div>
+                        </Link>
                       ))}
                     </div>
                   </div>

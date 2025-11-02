@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getCategories, getTopics } from '../services/api';
+import { getCategories, getCategoryTopics } from '../services/api';
 import '../styles/CategoryPage.css';
 
 function CategoryPage() {
@@ -8,25 +8,37 @@ function CategoryPage() {
   const navigate = useNavigate();
   const [category, setCategory] = useState(null);
   const [topics, setTopics] = useState([]);
-  const [filteredTopics, setFilteredTopics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('latest');
-  const [sortBy, setSortBy] = useState('latest');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [popularTags, setPopularTags] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const [categoriesData, topicsData] = await Promise.all([
           getCategories(),
-          getTopics()
+          getCategoryTopics(id, { page: currentPage, page_size: itemsPerPage })
         ]);
         
-        const currentCategory = categoriesData.find(cat => cat.id === parseInt(id));
+        // Handle paginated response - extract results array if paginated
+        const allCategories = categoriesData.results || categoriesData;
+        const currentCategory = allCategories.find(cat => cat.id === parseInt(id));
         setCategory(currentCategory);
         
-        const categoryTopics = topicsData.filter(topic => topic.category === parseInt(id));
-        setTopics(categoryTopics);
-        setFilteredTopics(categoryTopics);
+        // Handle paginated response from backend
+        const allTopics = topicsData.results || topicsData;
+        setTopics(allTopics);
+        setTotalCount(topicsData.count || allTopics.length);
+        setTotalPages(Math.ceil((topicsData.count || 0) / itemsPerPage) || 1);
+        
+        // Calculate popular tags from all topics in this category
+        calculatePopularTags(allTopics);
+        
         setLoading(false);
       } catch (err) {
         console.error('Error fetching category data:', err);
@@ -35,31 +47,37 @@ function CategoryPage() {
     };
 
     fetchData();
-  }, [id]);
+  }, [id, currentPage, itemsPerPage]);
+
+  const calculatePopularTags = (topicsArray) => {
+    // Count tag occurrences
+    const tagCount = {};
+    
+    topicsArray.forEach(topic => {
+      if (topic.tags && Array.isArray(topic.tags)) {
+        topic.tags.forEach(tag => {
+          if (tag) {
+            tagCount[tag] = (tagCount[tag] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    // Convert to array and sort by count
+    const sortedTags = Object.entries(tagCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10); // Top 10 tags
+
+    setPopularTags(sortedTags);
+  };
 
   useEffect(() => {
-    handleSorting(activeTab);
-  }, [topics, activeTab, sortBy]);
-
-  const handleSorting = (tab) => {
-    let sorted = [...topics];
-    
-    switch (tab) {
-      case 'trending':
-        sorted.sort((a, b) => (b.replies_count + b.views) - (a.replies_count + a.views));
-        break;
-      case 'latest':
-        sorted.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-        break;
-      case 'top':
-        sorted.sort((a, b) => b.views - a.views);
-        break;
-      default:
-        break;
+    // Reset to page 1 when category or items per page changes
+    if (currentPage !== 1) {
+      setCurrentPage(1);
     }
-    
-    setFilteredTopics(sorted);
-  };
+  }, [id, itemsPerPage]);
 
   const getTimeAgo = (dateString) => {
     const now = new Date();
@@ -76,11 +94,105 @@ function CategoryPage() {
 
   const getCategoryStats = () => {
     return {
-      topics: topics.length,
-      posts: topics.reduce((sum, topic) => sum + topic.replies_count, 0),
+      topics: totalCount,
+      replies: topics.reduce((sum, topic) => sum + topic.replies_count, 0),
       members: new Set(topics.map(t => t.author.id)).size,
       activeToday: Math.floor(topics.length * 0.6)
     };
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(parseInt(e.target.value));
+  };
+
+  const renderPaginationButtons = () => {
+    const buttons = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    // Adjust startPage if we're near the end
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    // Previous button
+    buttons.push(
+      <button
+        key="prev"
+        className="page-btn"
+        onClick={() => handlePageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+      >
+        Previous
+      </button>
+    );
+
+    // First page
+    if (startPage > 1) {
+      buttons.push(
+        <button
+          key={1}
+          className="page-btn"
+          onClick={() => handlePageChange(1)}
+        >
+          1
+        </button>
+      );
+      if (startPage > 2) {
+        buttons.push(<span key="ellipsis1" className="pagination-ellipsis">...</span>);
+      }
+    }
+
+    // Page numbers
+    for (let i = startPage; i <= endPage; i++) {
+      buttons.push(
+        <button
+          key={i}
+          className={`page-btn ${currentPage === i ? 'active' : ''}`}
+          onClick={() => handlePageChange(i)}
+        >
+          {i}
+        </button>
+      );
+    }
+
+    // Last page
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        buttons.push(<span key="ellipsis2" className="pagination-ellipsis">...</span>);
+      }
+      buttons.push(
+        <button
+          key={totalPages}
+          className="page-btn"
+          onClick={() => handlePageChange(totalPages)}
+        >
+          {totalPages}
+        </button>
+      );
+    }
+
+    // Next button
+    buttons.push(
+      <button
+        key="next"
+        className="page-btn"
+        onClick={() => handlePageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+      >
+        Next
+      </button>
+    );
+
+    return buttons;
   };
 
   if (loading) {
@@ -118,35 +230,20 @@ function CategoryPage() {
       {/* Tabs and Sorting Bar */}
       <div className="category-tabs-bar">
         <div className="category-tabs">
-          <button
-            className={`tab ${activeTab === 'trending' ? 'active' : ''}`}
-            onClick={() => setActiveTab('trending')}
-          >
-            🔥 Trending
-          </button>
-          <button
-            className={`tab ${activeTab === 'latest' ? 'active' : ''}`}
-            onClick={() => setActiveTab('latest')}
-          >
+          <button className="tab active">
             🆕 Latest
-          </button>
-          <button
-            className={`tab ${activeTab === 'top' ? 'active' : ''}`}
-            onClick={() => setActiveTab('top')}
-          >
-            👑 Top
           </button>
           <button className="tab" disabled>
             📅 My Posts
           </button>
         </div>
-        <div className="sort-dropdown">
-          <label>Sort by</label>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-            <option value="latest">Latest</option>
-            <option value="oldest">Oldest</option>
-            <option value="most-replies">Most replies</option>
-            <option value="most-views">Most views</option>
+        <div className="pagination-controls">
+          <label>Items per page:</label>
+          <select value={itemsPerPage} onChange={handleItemsPerPageChange} className="items-per-page-select">
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
           </select>
         </div>
       </div>
@@ -154,7 +251,7 @@ function CategoryPage() {
       <div className="category-content">
         {/* Main Content - Topics List */}
         <div className="topics-list-container">
-          {filteredTopics.length === 0 ? (
+          {topics.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">📭</div>
               <h3>No topics yet in this category.</h3>
@@ -163,13 +260,13 @@ function CategoryPage() {
             </div>
           ) : (
             <div className="topics-list">
-              {filteredTopics.map((topic) => (
+              {topics.map((topic) => (
                 <Link to={`/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <div className="topic-row">
                     <div className="topic-user-info">
-                      <div className="user-avatar">{topic.author.avatar}</div>
+                      <div className="user-avatar">{topic.author?.avatar || topic.author?.username?.[0]?.toUpperCase() || "?"}</div>
                       <div className="user-meta">
-                        <span className="user-name">{topic.author.username}</span>
+                        <span className="user-name">{topic.author?.username || "Unknown"}</span>
                         <span className="post-time"> • {getTimeAgo(topic.created_at)}</span>
                       </div>
                     </div>
@@ -186,10 +283,10 @@ function CategoryPage() {
 
                     <div className="topic-stats-bar">
                       <span className="stat-item">
-                        💬 {topic.replies_count} replies
+                        💬 {topic.replies_count || 0} replies
                       </span>
                       <span className="stat-item">
-                        👁 {topic.views} views
+                        👁 {topic.views || 0} views
                       </span>
                       <span className="last-activity">
                         🕒 Last activity: {getTimeAgo(topic.updated_at)}
@@ -202,13 +299,16 @@ function CategoryPage() {
           )}
 
           {/* Pagination */}
-          {filteredTopics.length > 0 && (
-            <div className="pagination">
-              <button className="page-btn" disabled>Previous</button>
-              <button className="page-btn active">1</button>
-              <button className="page-btn">2</button>
-              <button className="page-btn">3</button>
-              <button className="page-btn">Next</button>
+          {totalCount > 0 && (
+            <div className="pagination-wrapper">
+              <div className="pagination-info">
+                Showing page {currentPage} of {totalPages} ({totalCount} total topics)
+              </div>
+              {totalPages > 1 && (
+                <div className="pagination">
+                  {renderPaginationButtons()}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -229,8 +329,8 @@ function CategoryPage() {
                 <span className="stat-value">{stats.topics}</span>
               </div>
               <div className="stat-row">
-                <span className="stat-label">Posts:</span>
-                <span className="stat-value">{stats.posts}</span>
+                <span className="stat-label">Replies:</span>
+                <span className="stat-value">{stats.replies}</span>
               </div>
               <div className="stat-row">
                 <span className="stat-label">Members:</span>
@@ -245,27 +345,45 @@ function CategoryPage() {
 
           {/* Quick Help / Rules */}
           <div className="sidebar-card rules-card">
-            <h3>🧠 Category Rules</h3>
-            <ul className="rules-list">
-              <li>Be respectful</li>
-              <li>No spam or ads</li>
-              <li>Keep topics {category.title.toLowerCase()} related</li>
-            </ul>
-            <button className="view-rules-btn">View Full Rules</button>
+            <h3>📋 Category Rules</h3>
+            {category.rules && category.rules.length > 0 ? (
+              <>
+                <ul className="rules-list">
+                  {category.rules
+                    .filter(rule => rule.is_active)
+                    .slice(0, 5)
+                    .map((rule, index) => (
+                      <li key={rule.id}>
+                        <strong>{index + 1}. {rule.title}</strong>
+                        <p>{rule.description}</p>
+                      </li>
+                    ))}
+                </ul>
+                {category.rules.filter(rule => rule.is_active).length > 5 && (
+                  <button className="view-rules-btn">
+                    View All {category.rules.filter(rule => rule.is_active).length} Rules
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="no-rules">No rules set for this category yet.</p>
+            )}
           </div>
 
           {/* Popular Tags */}
           <div className="sidebar-card tags-card">
             <h3>🏷️ Popular Tags</h3>
-            <div className="tags-cloud">
-              <span className="tag-pill">React</span>
-              <span className="tag-pill">Python</span>
-              <span className="tag-pill">Docker</span>
-              <span className="tag-pill">Next.js</span>
-              <span className="tag-pill">Testing</span>
-              <span className="tag-pill">Django</span>
-              <span className="tag-pill">Node.js</span>
-            </div>
+            {popularTags.length > 0 ? (
+              <div className="tags-cloud">
+                {popularTags.map((tag) => (
+                  <span key={tag.name} className="tag-pill" title={`Used in ${tag.count} topic(s)`}>
+                    {tag.name} <span className="tag-count">({tag.count})</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="no-tags">No tags used in this category yet.</p>
+            )}
           </div>
         </aside>
       </div>

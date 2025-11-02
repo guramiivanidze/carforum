@@ -7,7 +7,7 @@ function Sidebar({ topics, topMembers }) {
     if (!topics || topics.length === 0) return [];
     return [...topics]
       .sort((a, b) => b.replies_count - a.replies_count)
-      .slice(0, 3);
+      .slice(0, 10);
   }, [topics]);
 
   const getBadgeColor = (index) => {
@@ -23,7 +23,9 @@ function Sidebar({ topics, topMembers }) {
           popularTopics.map((topic) => (
             <Link to={`/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="popular-topic">
-                <div className="popular-topic-title">🔥 {topic.title}</div>
+                <div className="popular-topic-title">
+                  🔥 {topic.title.length > 50 ? topic.title.substring(0, 50) + '...' : topic.title}
+                </div>
                 <div className="popular-topic-stats">{topic.replies_count} replies</div>
               </div>
             </Link>

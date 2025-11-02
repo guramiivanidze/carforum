@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getTopic, createReply, likeReply, bookmarkTopic } from '../services/api';
+import { getTopic, createReply, likeReply, deleteReply, bookmarkTopic, votePoll } from '../services/api';
 import ReportModal from './ReportModal';
+import MDEditor from '@uiw/react-md-editor';
+import ReactMarkdown from 'react-markdown';
 import '../styles/TopicDetailPage.css';
 
 function TopicDetailPage() {
@@ -13,15 +15,24 @@ function TopicDetailPage() {
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState('');
   const [showReplyBox, setShowReplyBox] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null); // Store parent reply info
   const [submitting, setSubmitting] = useState(false);
   const [likingReplyId, setLikingReplyId] = useState(null);
+  const replyBoxRef = useRef(null); // Ref for reply editor box
   const [reportingReplyId, setReportingReplyId] = useState(null);
   const [bookmarking, setBookmarking] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState({ title: '', message: '' });
+  const [votingPoll, setVotingPoll] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null); // For image lightbox
 
   useEffect(() => {
     const fetchTopic = async () => {
       try {
         const data = await getTopic(id);
+        console.log('Topic data received:', data);
+        console.log('Images:', data.images);
+        console.log('Poll:', data.poll);
         setTopic(data);
         setLoading(false);
       } catch (err) {
@@ -46,77 +57,33 @@ function TopicDetailPage() {
     return `${diffDays} days ago`;
   };
 
-  const renderContent = (content) => {
-    // Parse [quote="username"]content[/quote] format
-    const quoteRegex = /\[quote="([^"]+)"\]([\s\S]*?)\[\/quote\]/g;
-    const parts = [];
-    let lastIndex = 0;
-    let match;
-
-    while ((match = quoteRegex.exec(content)) !== null) {
-      // Add text before quote
-      if (match.index > lastIndex) {
-        parts.push({
-          type: 'text',
-          content: content.substring(lastIndex, match.index)
-        });
-      }
-      
-      // Add quote
-      parts.push({
-        type: 'quote',
-        author: match[1],
-        content: match[2].trim()
-      });
-      
-      lastIndex = match.index + match[0].length;
+  const handleReplyClick = () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/topic/${id}` } });
+      return;
     }
+    setReplyingTo(null);
+    setShowReplyBox(true);
+    setReplyText('');
     
-    // Add remaining text
-    if (lastIndex < content.length) {
-      parts.push({
-        type: 'text',
-        content: content.substring(lastIndex)
-      });
-    }
-    
-    return parts.length > 0 ? parts : [{ type: 'text', content }];
+    // Scroll to reply box after it's rendered
+    setTimeout(() => {
+      replyBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   };
 
-  const renderFormattedContent = (content) => {
-    if (!content) return 'No content available.';
-    
-    let formatted = content;
-    
-    // Bold **text**
-    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    
-    // Italic *text*
-    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    
-    // Code blocks ```code```
-    formatted = formatted.replace(/```([\s\S]+?)```/g, '<pre><code>$1</code></pre>');
-    
-    // Inline code `code`
-    formatted = formatted.replace(/`(.+?)`/g, '<code class="inline-code">$1</code>');
-    
-    // Quotes > text
-    formatted = formatted.replace(/^> (.+)$/gm, '<blockquote class="markdown-quote">$1</blockquote>');
-    
-    // Links [text](url)
-    formatted = formatted.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-    
-    // Bullet lists - item
-    formatted = formatted.replace(/^- (.+)$/gm, '<li>$1</li>');
-    formatted = formatted.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-    
-    // Numbered lists 1. item
-    formatted = formatted.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-    
-    // Line breaks
-    formatted = formatted.replace(/\n/g, '<br>');
-    
-    return formatted;
+  const handleReplyToReply = (reply) => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/topic/${id}` } });
+      return;
+    }
+    setReplyingTo(reply);
+    setShowReplyBox(true);
+    setReplyText('');
+    // Scroll to reply box
+    setTimeout(() => {
+      document.querySelector('.reply-editor-box')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   };
 
   const handleReplySubmit = async (e) => {
@@ -129,18 +96,29 @@ function TopicDetailPage() {
 
     setSubmitting(true);
     try {
-      const newReply = await createReply(id, { content: replyText });
+      const replyData = { 
+        content: replyText,
+        parent: replyingTo?.id || null  // Include parent ID if replying to a reply
+      };
+      const newReply = await createReply(id, replyData);
       
-      // Add the new reply to the topic's replies
-      setTopic(prev => ({
-        ...prev,
-        replies: [...prev.replies, newReply],
-        replies_count: prev.replies_count + 1
-      }));
+      // Refresh the topic to get updated replies with proper nesting
+      const updatedTopic = await getTopic(id);
+      setTopic(updatedTopic);
       
       setReplyText('');
+      setReplyingTo(null);
       setShowReplyBox(false);
-      alert('Reply posted successfully! 🎉');
+      setSuccessMessage({
+        title: 'Reply Posted Successfully!',
+        message: 'Your reply has been added to the discussion.'
+      });
+      setShowSuccessModal(true);
+      
+      // Auto-hide modal after 3 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
     } catch (error) {
       console.error('Error posting reply:', error);
       console.error('Error response:', error.response?.data);
@@ -148,15 +126,6 @@ function TopicDetailPage() {
       alert(errorMsg);
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleReplyClick = () => {
-    if (!isAuthenticated) {
-      // Redirect to login with return path
-      navigate('/login', { state: { from: `/topic/${id}` } });
-    } else {
-      setShowReplyBox(true);
     }
   };
 
@@ -185,9 +154,46 @@ function TopicDetailPage() {
       }));
     } catch (error) {
       console.error('Error liking reply:', error);
-      alert('Failed to like reply. Please try again.');
+      const errorMsg = error.response?.data?.error || 'Failed to like reply. Please try again.';
+      alert(errorMsg);
     } finally {
       setLikingReplyId(null);
+    }
+  };
+
+  const handleDeleteReply = async (replyId) => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/topic/${id}` } });
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this reply? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await deleteReply(replyId);
+      
+      // Remove the deleted reply from the topic's replies array
+      setTopic(prev => ({
+        ...prev,
+        replies: prev.replies.filter(reply => reply.id !== replyId)
+      }));
+      
+      setSuccessMessage({
+        title: 'Reply Deleted Successfully!',
+        message: 'Your reply has been removed from the discussion.'
+      });
+      setShowSuccessModal(true);
+      
+      // Auto-hide modal after 3 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error deleting reply:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to delete reply. Please try again.';
+      alert(errorMsg);
     }
   };
 
@@ -214,24 +220,25 @@ function TopicDetailPage() {
     }
   };
 
-  const handleQuoteReply = (reply) => {
+  const handlePollVote = async (optionId) => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: `/topic/${id}` } });
       return;
     }
 
-    const quotedText = `[quote="${reply.author.username}"]\n${reply.content}\n[/quote]\n\n`;
-    setReplyText(quotedText);
-    setShowReplyBox(true);
-    
-    // Scroll to reply box
-    setTimeout(() => {
-      const replyBox = document.querySelector('.reply-textarea');
-      if (replyBox) {
-        replyBox.focus();
-        replyBox.setSelectionRange(quotedText.length, quotedText.length);
-      }
-    }, 100);
+    setVotingPoll(true);
+    try {
+      await votePoll(topic.poll.id, optionId);
+      
+      // Refresh topic to get updated poll results
+      const updatedTopic = await getTopic(id);
+      setTopic(updatedTopic);
+    } catch (error) {
+      console.error('Error voting on poll:', error);
+      alert('Failed to vote. Please try again.');
+    } finally {
+      setVotingPoll(false);
+    }
   };
 
   const handleReportClick = (replyId) => {
@@ -243,8 +250,114 @@ function TopicDetailPage() {
   };
 
   const handleReportSuccess = () => {
-    alert('Report submitted successfully! Our moderators will review it shortly.');
+    setSuccessMessage({
+      title: 'Report Submitted Successfully!',
+      message: 'Our moderators will review it shortly.'
+    });
+    setShowSuccessModal(true);
+    
+    // Auto-hide modal after 3 seconds
+    setTimeout(() => {
+      setShowSuccessModal(false);
+    }, 3000);
   };
+
+  // Function to flatten all nested replies into a single array (sorted by date)
+  const flattenReplies = (replies) => {
+    const flattened = [];
+    const flatten = (replyList) => {
+      replyList.forEach(reply => {
+        flattened.push(reply);
+        if (reply.child_replies && reply.child_replies.length > 0) {
+          flatten(reply.child_replies);
+        }
+      });
+    };
+    flatten(replies);
+    // Sort by created_at chronologically (oldest first)
+    return flattened.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  };
+
+  // Component to render a single reply (flat structure)
+  const RenderReply = ({ reply, isNested = false }) => (
+    <div 
+      className={`reply-card ${reply.resolved_report ? 'reported-reply' : ''} ${isNested ? 'nested-reply' : ''}`}
+      style={isNested ? { marginLeft: '3rem' } : {}}
+    >
+      {reply.resolved_report && (
+        <div className="report-warning">
+          <span className="report-icon">⚠️</span>
+          <div className="report-text">
+            <strong>Your reply was reported and hidden</strong>
+            <div className="report-reason-inline">
+              Reason: {reply.resolved_report.reason}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className="reply-main">
+        {/* Reply Header - Author Info (Left Side) */}
+        <div className="reply-header">
+          <div className="user-avatar-medium">{reply.author.avatar}</div>
+          <div className="reply-meta">
+            <Link to={`/profile/${reply.author.id}`} className="reply-username">{reply.author.username}</Link>
+            <div className="reply-time">{getTimeAgo(reply.created_at)}</div>
+          </div>
+        </div>
+        
+        {/* Reply Content (Right Side) */}
+        <div className="reply-content">
+          {/* Mention Badge - Show who this reply is responding to */}
+          {reply.parent_author && (
+            <div className="reply-mention">
+              <span className="mention-icon">↳</span>
+              Replying to <Link to={`/profile/${reply.parent_author.id}`} className="mention-link">
+                @{reply.parent_author.username}
+              </Link>
+            </div>
+          )}
+          
+          <ReactMarkdown>{reply.content}</ReactMarkdown>
+          
+          {/* Reply Actions */}
+          <div className="reply-actions">
+            {user && reply.author.id !== user.id && (
+              <button 
+                className={`reply-action-btn ${reply.user_has_liked ? 'liked' : ''}`}
+                onClick={() => handleLikeReply(reply.id)}
+                disabled={likingReplyId === reply.id}
+              >
+                {reply.user_has_liked ? '❤️' : '👍'} Like {reply.likes_count > 0 && `(${reply.likes_count})`}
+              </button>
+            )}
+            <button 
+              className="reply-action-btn"
+              onClick={() => handleReplyToReply(reply)}
+            >
+              💬 Reply {reply.replies_count > 0 && `(${reply.replies_count})`}
+            </button>
+            {user && reply.author.id !== user.id && (
+              <button 
+                className="reply-action-btn"
+                onClick={() => handleReportClick(reply.id)}
+              >
+                🚩 Report
+              </button>
+            )}
+            {user && reply.author.id === user.id && (
+              <button 
+                className="reply-action-btn delete-btn"
+                onClick={() => handleDeleteReply(reply.id)}
+              >
+                🗑️ Delete
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return <div className="topic-detail-loading">Loading topic...</div>;
@@ -263,58 +376,131 @@ function TopicDetailPage() {
         <Link to="/#categories">Categories</Link>
         <span className="breadcrumb-separator">›</span>
         <Link to={`/category/${topic.category.id}`}>{topic.category.title}</Link>
-        <span className="breadcrumb-separator">›</span>
-        <span className="breadcrumb-current">{topic.title}</span>
-      </div>
-
-      {/* Topic Header */}
-      <div className="topic-header-block">
-        <div className="topic-header-content">
-          <h1 className="topic-detail-title">{topic.title}</h1>
-          <div className="topic-meta">
-            <span className="category-tag">{topic.category.title}</span>
-            <span className="meta-item">Created: {getTimeAgo(topic.created_at)}</span>
-            <span className="meta-item">👁 {topic.views} views</span>
-            <span className="meta-item">💬 {topic.replies_count} replies</span>
-            <span className="meta-item">🕒 Last update: {getTimeAgo(topic.updated_at)}</span>
-          </div>
-        </div>
-        <div className="header-actions">
-          {user && topic.author.id === user.id && (
-            <Link to={`/edit-topic/${topic.id}`} className="edit-btn-header">
-              ✏️ Edit
-            </Link>
-          )}
-          <button className="reply-btn-header" onClick={handleReplyClick}>
-            Reply
-          </button>
-        </div>
       </div>
 
       <div className="topic-detail-content">
         {/* Main Content */}
         <div className="topic-main-content">
-          {/* Original Post */}
+          {/* Original Post - Title and Content */}
           <div className="post-card op-post">
-            <div className="post-left">
-              <div className="user-avatar-large">{topic.author.avatar}</div>
-              <div className="user-info">
-                <Link to={`/profile/${topic.author.id}`} className="username-large">{topic.author.username}</Link>
-                <div className="user-role-tag">Member</div>
-                <div className="user-stats-small">
-                  <div>Joined: 2024</div>
-                  <div>Posts: {topic.author.points}</div>
-                </div>
+            {/* Topic Title and Meta */}
+            <div className="topic-title-section">
+              <h1 className="topic-detail-title">{topic.title}</h1>
+              <div className="topic-meta">
+                <span className="category-tag">{topic.category.title}</span>
+                <span className="meta-item">👁 {topic.views} views</span>
+                <span className="meta-item">💬 {topic.replies_count} replies</span>
+                <span className="meta-item">🕒 {getTimeAgo(topic.created_at)} ({new Date(topic.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})</span>
               </div>
             </div>
-            <div className="post-right">
-              <div className="post-content">
-                <div dangerouslySetInnerHTML={{ __html: renderFormattedContent(topic.content) }} />
+
+            {/* Content Only */}
+            <div className="post-content-main">
+              <ReactMarkdown>{topic.content}</ReactMarkdown>
+            </div>
+
+            {/* Topic Images */}
+            {topic.images && topic.images.length > 0 && (
+              <div className="topic-images">
+                <div className="topic-images-grid">
+                  {topic.images.map((image) => (
+                    <div key={image.id} className="topic-image-item" onClick={() => setLightboxImage(image)}>
+                      <img 
+                        src={image.image_url || image.image} 
+                        alt={image.caption || 'Topic image'} 
+                      />
+                      {image.caption && (
+                        <p className="image-caption">{image.caption}</p>
+                      )}
+                      <div className="image-overlay">
+                        <span className="zoom-icon">🔍</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="post-actions">
-                <button className="action-btn">👍 Like</button>
-                <button className="action-btn">Share</button>
+            )}
+
+            {/* Poll Section */}
+            {topic.poll && (
+              <div className="topic-poll">
+                <h3 className="poll-question">📊 {topic.poll.question}</h3>
+                <div className="poll-options">
+                  {topic.poll.options.map((option) => {
+                    const isUserVote = topic.poll.user_vote === option.id;
+                    const hasVoted = topic.poll.user_vote !== null;
+                    
+                    return (
+                      <div key={option.id} className="poll-option-wrapper">
+                        {!hasVoted ? (
+                          // Show clickable option before voting
+                          <button
+                            className="poll-option-button"
+                            onClick={() => handlePollVote(option.id)}
+                            disabled={votingPoll}
+                          >
+                            <span className="poll-option-text">{option.text}</span>
+                            <span className="poll-option-arrow">→</span>
+                          </button>
+                        ) : (
+                          // Show results after voting
+                          <div className={`poll-option-result ${isUserVote ? 'user-voted' : ''}`}>
+                            <div className="poll-option-header">
+                              <span className="poll-option-text">
+                                {option.text}
+                                {isUserVote && <span className="vote-badge">✓ Your vote</span>}
+                              </span>
+                              <span className="poll-option-stats">
+                                {option.votes_count} {option.votes_count === 1 ? 'vote' : 'votes'} · {option.percentage}%
+                              </span>
+                            </div>
+                            <div className="poll-option-bar">
+                              <div 
+                                className="poll-option-bar-fill"
+                                style={{ width: `${option.percentage}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="poll-footer">
+                  <span className="poll-total-votes">
+                    {topic.poll.total_votes} total {topic.poll.total_votes === 1 ? 'vote' : 'votes'}
+                  </span>
+                </div>
               </div>
+            )}
+
+            {/* Tags */}
+            {topic.tags && topic.tags.length > 0 && (
+              <div className="topic-tags">
+                {topic.tags.map((tag, index) => (
+                  <span key={index} className="topic-tag">
+                    🏷️ {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="post-actions">
+              {user && topic.author.id === user.id && (
+                <Link to={`/edit-topic/${topic.id}`} className="action-btn">
+                  ✏️ Edit
+                </Link>
+              )}
+              <button className="action-btn">👍 Like</button>
+              <button className="action-btn" onClick={handleReplyClick}>💬 Reply</button>
+              <button 
+                className={`action-btn ${topic.user_has_bookmarked ? 'active' : ''}`}
+                onClick={handleBookmark}
+                disabled={bookmarking}
+              >
+                {topic.user_has_bookmarked ? '✓ Bookmarked' : '🔖 Bookmark'}
+              </button>
             </div>
           </div>
 
@@ -323,67 +509,24 @@ function TopicDetailPage() {
             <h2 className="replies-heading">{topic.replies_count} Replies</h2>
             
             {topic.replies && topic.replies.length > 0 ? (
-              topic.replies.map((reply) => (
-                <div key={reply.id} className={`post-card reply-card ${reply.resolved_report ? 'reported-reply' : ''}`}>
-                  {reply.resolved_report && (
-                    <div className="report-warning">
-                      <span className="report-icon">⚠️</span>
-                      <div className="report-text">
-                        <strong>Your reply was reported and hidden</strong>
-                        <div className="report-reason-inline">
-                          Reason: {reply.resolved_report.reason}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="post-left">
-                    <div className="user-avatar-medium">{reply.author.avatar}</div>
-                    <div className="reply-user-info">
-                      <Link to={`/profile/${reply.author.id}`} className="username-medium">{reply.author.username}</Link>
-                      <div className="reply-time">{getTimeAgo(reply.created_at)}</div>
-                    </div>
-                  </div>
-                  <div className="post-right">
-                    <div className="post-content">
-                      {renderContent(reply.content).map((part, idx) => (
-                        part.type === 'quote' ? (
-                          <div key={idx} className="quoted-content">
-                            <div className="quote-header">
-                              {part.author} said:
-                            </div>
-                            <div className="quote-body">
-                              {part.content}
-                            </div>
-                          </div>
-                        ) : (
-                          <p key={idx}>{part.content}</p>
-                        )
-                      ))}
-                    </div>
-                    <div className="post-actions">
-                      <button 
-                        className={`action-btn-small ${reply.user_has_liked ? 'liked' : ''}`}
-                        onClick={() => handleLikeReply(reply.id)}
-                        disabled={likingReplyId === reply.id}
-                      >
-                        {reply.user_has_liked ? '❤️' : '👍'} Like {reply.likes_count > 0 && `(${reply.likes_count})`}
-                      </button>
-                      <button 
-                        className="action-btn-small"
-                        onClick={() => handleQuoteReply(reply)}
-                      >
-                        Quote
-                      </button>
-                      <button 
-                        className="action-btn-small"
-                        onClick={() => handleReportClick(reply.id)}
-                      >
-                        Report
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
+              topic.replies.map((reply) => {
+                // Render main reply
+                const mainReply = <RenderReply key={reply.id} reply={reply} isNested={false} />;
+                
+                // Render all sub-replies flattened (no deep nesting)
+                const subReplies = reply.child_replies && reply.child_replies.length > 0
+                  ? flattenReplies(reply.child_replies).map(subReply => (
+                      <RenderReply key={subReply.id} reply={subReply} isNested={true} />
+                    ))
+                  : null;
+                
+                return (
+                  <React.Fragment key={reply.id}>
+                    {mainReply}
+                    {subReplies}
+                  </React.Fragment>
+                );
+              })
             ) : (
               <div className="no-replies">
                 <p>No replies yet. Be the first to reply!</p>
@@ -393,49 +536,55 @@ function TopicDetailPage() {
 
           {/* Reply Editor Box */}
           {showReplyBox && (
-            <div className="reply-editor-box">
+            <div className="reply-editor-box" ref={replyBoxRef}>
               <div className="editor-header">
                 <div className="user-avatar-small">
                   {user?.avatar || '👤'}
                 </div>
-                <span>Write your reply as {user?.username}...</span>
-              </div>
-              <form onSubmit={handleReplySubmit}>
-                <textarea
-                  className="reply-textarea"
-                  placeholder="Write your reply..."
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  rows="6"
-                />
-                <div className="editor-toolbar">
-                  <div className="toolbar-buttons">
-                    <button type="button" className="toolbar-btn" title="Bold">B</button>
-                    <button type="button" className="toolbar-btn" title="Italic">I</button>
-                    <button type="button" className="toolbar-btn" title="Link">🔗</button>
-                    <button type="button" className="toolbar-btn" title="Code">{'</>'}</button>
-                    <button type="button" className="toolbar-btn" title="Quote">❝</button>
-                    <button type="button" className="toolbar-btn" title="Emoji">🙂</button>
-                  </div>
-                  <div className="editor-actions">
+                <div>
+                  {replyingTo ? (
+                    <span>Replying to <strong>{replyingTo.author.username}</strong>...</span>
+                  ) : (
+                    <span>Write your reply as {user?.username}...</span>
+                  )}
+                  {replyingTo && (
                     <button 
                       type="button" 
-                      className="cancel-btn"
-                      onClick={() => {
-                        setShowReplyBox(false);
-                        setReplyText('');
-                      }}
+                      className="cancel-reply-to-btn"
+                      onClick={() => setReplyingTo(null)}
+                      title="Cancel reply to this user"
                     >
-                      Cancel
+                      ✕
                     </button>
-                    <button 
-                      type="submit" 
-                      className="post-reply-btn"
-                      disabled={submitting || !replyText.trim()}
-                    >
-                      {submitting ? 'Posting...' : 'Post Reply'}
-                    </button>
-                  </div>
+                  )}
+                </div>
+              </div>
+              <form onSubmit={handleReplySubmit}>
+                <MDEditor
+                  value={replyText}
+                  onChange={setReplyText}
+                  preview="live"
+                  height={300}
+                />
+                <div className="editor-actions">
+                  <button 
+                    type="button" 
+                    className="cancel-btn"
+                    onClick={() => {
+                      setShowReplyBox(false);
+                      setReplyText('');
+                      setReplyingTo(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="post-reply-btn"
+                    disabled={submitting || !replyText.trim()}
+                  >
+                    {submitting ? 'Posting...' : 'Post Reply'}
+                  </button>
                 </div>
               </form>
             </div>
@@ -453,18 +602,47 @@ function TopicDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <aside className="topic-detail-sidebar">
+        <aside className="topic-sidebar">
+          {/* Author Info Card */}
+          <div className="sidebar-card author-info-card">
+            <h3>👤 Topic Author</h3>
+            <div className="author-info-content">
+              <div className="user-avatar-large">{topic.author.avatar}</div>
+              <Link to={`/profile/${topic.author.id}`} className="author-username">{topic.author.username}</Link>
+              <div className="user-role-tag">Member</div>
+              <div className="author-stats">
+                <div className="stat-item">
+                  <span className="stat-label">Joined:</span>
+                  <span className="stat-value">2024</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Posts:</span>
+                  <span className="stat-value">{topic.author.points}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Thread Info Card */}
           <div className="sidebar-card thread-info-card">
             <h3>✅ Thread Info</h3>
             <div className="thread-info-list">
               <div className="info-row">
-                <span className="info-label">Topic starter:</span>
-                <span className="info-value">{topic.author.username}</span>
-              </div>
-              <div className="info-row">
                 <span className="info-label">Created:</span>
-                <span className="info-value">{getTimeAgo(topic.created_at)}</span>
+                <span className="info-value">
+                  {getTimeAgo(topic.created_at)}
+                  <br />
+                  <small style={{ color: '#6b7280', fontSize: '0.85em' }}>
+                    {new Date(topic.created_at).toLocaleDateString('en-US', { 
+                      weekday: 'short',
+                      month: 'short', 
+                      day: 'numeric', 
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </small>
+                </span>
               </div>
               <div className="info-row">
                 <span className="info-label">Followers:</span>
@@ -518,6 +696,42 @@ function TopicDetailPage() {
           onClose={() => setReportingReplyId(null)}
           onSuccess={handleReportSuccess}
         />
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="success-modal-overlay" onClick={() => setShowSuccessModal(false)}>
+          <div className="success-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="success-modal-icon">✅</div>
+            <h3 className="success-modal-title">{successMessage.title}</h3>
+            <p className="success-modal-message">{successMessage.message}</p>
+            <button 
+              className="success-modal-button"
+              onClick={() => setShowSuccessModal(false)}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Image Lightbox */}
+      {lightboxImage && (
+        <div className="image-lightbox-overlay" onClick={() => setLightboxImage(null)}>
+          <div className="image-lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <button className="lightbox-close" onClick={() => setLightboxImage(null)}>
+              ✕
+            </button>
+            <img 
+              src={lightboxImage.image_url || lightboxImage.image} 
+              alt={lightboxImage.caption || 'Topic image'} 
+              className="lightbox-image"
+            />
+            {lightboxImage.caption && (
+              <p className="lightbox-caption">{lightboxImage.caption}</p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

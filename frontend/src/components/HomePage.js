@@ -10,19 +10,33 @@ function HomePage() {
   const [topics, setTopics] = useState([]);
   const [topMembers, setTopMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchAllData = async () => {
       try {
+        // Fetch fewer topics on mobile (5) vs desktop (10)
+        const topicsLimit = isMobile ? 5 : 10;
+        
         const [categoriesData, topicsData, membersData] = await Promise.all([
           getCategories(),
-          getTopics(),
+          getTopics({ page: 1, page_size: topicsLimit }),
           getTopMembers()
         ]);
         
-        setCategories(categoriesData);
-        setTopics(topicsData);
-        setTopMembers(membersData.slice(0, 5)); // Only top 5 members
+        // Handle paginated responses - extract results array if paginated
+        setCategories(categoriesData.results || categoriesData);
+        setTopics(topicsData.results || topicsData);
+        setTopMembers(membersData.slice(0, 10)); // Top 10 members
         setLoading(false);
       } catch (err) {
         console.error('Error fetching home page data:', err);
@@ -31,7 +45,7 @@ function HomePage() {
     };
 
     fetchAllData();
-  }, []);
+  }, [isMobile]);
 
   return (
     <div className="main-container">

@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getCategories, createTopic, getTopic, updateTopic } from '../services/api';
+import { getCategories, createTopic, getTopic, updateTopic, getPopularTags } from '../services/api';
+import MDEditor from '@uiw/react-md-editor';
 import '../styles/CreateTopicPage.css';
 
 function CreateTopicPage() {
   const navigate = useNavigate();
   const { id } = useParams(); // For edit mode
   const { isAuthenticated, user } = useAuth();
+  const fileInputRef = useRef(null);
+  
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -25,46 +28,90 @@ function CreateTopicPage() {
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState({});
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [tagSuggestions, setTagSuggestions] = useState([]);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  
+  // New enhanced features
+  const [uploadedImages, setUploadedImages] = useState([]);
+  const [showPoll, setShowPoll] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  // Character limits
+  const TITLE_MAX = 100;
+  const CONTENT_MIN = 10;
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setShowLoginModal(true);
-      return;
-    }
-
     const fetchData = async () => {
       try {
-        const categoriesData = await getCategories();
-        setCategories(categoriesData);
+        // Check authentication
+        if (!isAuthenticated) {
+          setShowLoginModal(true);
+          setLoading(false);
+          return;
+        }
 
-        // If edit mode, fetch the topic
+        // Fetch categories and tags
+        const [categoriesData, tagsData] = await Promise.all([
+          getCategories(),
+          getPopularTags()
+        ]);
+        
+        setCategories(categoriesData.results || categoriesData);
+        setAvailableTags(tagsData.map(tag => tag.name));
+
+        // If edit mode, fetch topic data
         if (isEditMode) {
           const topicData = await getTopic(id);
           
           // Check if user is the author
           if (topicData.author.id !== user.id) {
-            alert('You can only edit your own topics');
             navigate(`/topic/${id}`);
             return;
           }
 
           setFormData({
             title: topicData.title,
-            category: topicData.category.id || topicData.category, // Extract ID if it's an object
+            category: topicData.category.id || topicData.category,
             content: topicData.content,
-            tags: []
+            tags: topicData.tags || []
           });
+          
+          const category = (categoriesData.results || categoriesData).find(cat => cat.id === (topicData.category.id || topicData.category));
+          setSelectedCategory(category);
+
+          // Load existing images
+          if (topicData.images && topicData.images.length > 0) {
+            const existingImages = topicData.images.map(img => ({
+              id: img.id,
+              file: null, // No file object for existing images
+              preview: img.image_url,
+              caption: img.caption || '',
+              existing: true // Flag to identify existing images
+            }));
+            setUploadedImages(existingImages);
+          }
+
+          // Load existing poll
+          if (topicData.poll) {
+            setShowPoll(true);
+            setPollQuestion(topicData.poll.question);
+            setPollOptions(topicData.poll.options.map(opt => opt.text));
+          }
         }
 
         setLoading(false);
-      } catch (err) {
-        console.error('Error fetching data:', err);
+      } catch (error) {
+        console.error('Error fetching data:', error);
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [isAuthenticated, isEditMode, id, user, navigate]);
+  }, [id, isEditMode, isAuthenticated, user, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -72,25 +119,75 @@ function CreateTopicPage() {
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
+    
+    // Update selected category
+    if (name === 'category') {
+      const category = categories.find(cat => cat.id === parseInt(value));
+      setSelectedCategory(category);
+    }
+    
+    // Clear error for this field
     if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
   const handleAddTag = (e) => {
     if (e.key === 'Enter' && tagInput.trim()) {
       e.preventDefault();
-      if (formData.tags.length < 5 && !formData.tags.includes(tagInput.trim())) {
+      const trimmedTag = tagInput.trim();
+      
+      // Validate tag length (max 50 characters)
+      if (trimmedTag.length > 50) {
+        setErrors(prev => ({ ...prev, tags: 'Tag must be 50 characters or less' }));
+        return;
+      }
+      
+      if (formData.tags.length < 5 && !formData.tags.includes(trimmedTag)) {
         setFormData(prev => ({
           ...prev,
-          tags: [...prev.tags, tagInput.trim()]
+          tags: [...prev.tags, trimmedTag]
         }));
         setTagInput('');
+        setShowTagSuggestions(false);
+        setErrors(prev => ({ ...prev, tags: '' }));
       }
+    }
+  };
+
+  const handleTagInputChange = (value) => {
+    // Limit input to 50 characters
+    const limitedValue = value.slice(0, 50);
+    setTagInput(limitedValue);
+    
+    if (limitedValue.trim().length > 0) {
+      // Filter available tags based on input
+      const filtered = availableTags.filter(tag => 
+        tag.toLowerCase().includes(limitedValue.toLowerCase()) && 
+        !formData.tags.includes(tag)
+      );
+      setTagSuggestions(filtered);
+      setShowTagSuggestions(filtered.length > 0);
+    } else {
+      setShowTagSuggestions(false);
+      setTagSuggestions([]);
+    }
+    
+    // Clear tag error when user starts typing
+    if (errors.tags) {
+      setErrors(prev => ({ ...prev, tags: '' }));
+    }
+  };
+
+  const handleSelectTag = (tag) => {
+    if (formData.tags.length < 5 && !formData.tags.includes(tag)) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, tag]
+      }));
+      setTagInput('');
+      setShowTagSuggestions(false);
+      setTagSuggestions([]);
     }
   };
 
@@ -101,75 +198,82 @@ function CreateTopicPage() {
     }));
   };
 
-  const insertFormatting = (format) => {
-    const textarea = document.querySelector('.content-textarea');
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = formData.content.substring(start, end);
-    let newText = '';
-
-    switch (format) {
-      case 'bold':
-        newText = `**${selectedText || 'bold text'}**`;
-        break;
-      case 'italic':
-        newText = `*${selectedText || 'italic text'}*`;
-        break;
-      case 'code':
-        newText = `\`${selectedText || 'code'}\``;
-        break;
-      case 'codeblock':
-        newText = `\n\`\`\`\n${selectedText || 'code block'}\n\`\`\`\n`;
-        break;
-      case 'link':
-        newText = `[${selectedText || 'link text'}](url)`;
-        break;
-      case 'quote':
-        newText = `\n> ${selectedText || 'quote'}\n`;
-        break;
-      case 'list':
-        newText = `\n- ${selectedText || 'list item'}\n`;
-        break;
-      case 'numberedlist':
-        newText = `\n1. ${selectedText || 'list item'}\n`;
-        break;
-      default:
-        return;
-    }
-
-    const newContent = 
-      formData.content.substring(0, start) + 
-      newText + 
-      formData.content.substring(end);
-
-    setFormData(prev => ({ ...prev, content: newContent }));
+  // Image upload handlers
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
     
-    // Refocus textarea
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + newText.length, start + newText.length);
-    }, 0);
+    imageFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedImages(prev => [...prev, {
+          id: Date.now() + Math.random(),
+          file,
+          preview: reader.result,
+          name: file.name
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
+  const handleRemoveImage = (imageId) => {
+    setUploadedImages(prev => prev.filter(img => img.id !== imageId));
+  };
+
+  // Poll handlers
+  const handlePollOptionChange = (index, value) => {
+    const newOptions = [...pollOptions];
+    newOptions[index] = value;
+    setPollOptions(newOptions);
+  };
+
+  const handleAddPollOption = () => {
+    if (pollOptions.length < 10) {
+      setPollOptions([...pollOptions, '']);
+    }
+  };
+
+  const handleRemovePollOption = (index) => {
+    if (pollOptions.length > 2) {
+      setPollOptions(pollOptions.filter((_, i) => i !== index));
+    }
+  };
+
+  // Validation
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-    } else if (formData.title.trim().length < 10) {
-      newErrors.title = 'Title must be at least 10 characters';
+      newErrors.title = 'Please enter a title for your topic';
+    } else if (formData.title.length > TITLE_MAX) {
+      newErrors.title = `Title must be ${TITLE_MAX} characters or less`;
     }
-    
+
     if (!formData.category) {
       newErrors.category = 'Please select a category';
     }
-    
-    if (!formData.content.trim()) {
-      newErrors.content = 'Content is required';
-    } else if (formData.content.trim().split(/\s+/).length < 10) {
-      newErrors.content = 'Content must be at least 10 words';
+
+    if (!formData.content || formData.content.trim().length < CONTENT_MIN) {
+      newErrors.content = `Content must be at least ${CONTENT_MIN} characters`;
     }
-    
+
+    if (showPoll) {
+      if (!pollQuestion.trim()) {
+        newErrors.poll = 'Please enter a poll question';
+      }
+      
+      const validOptions = pollOptions.filter(opt => opt.trim());
+      if (validOptions.length < 2) {
+        newErrors.poll = 'Poll must have at least 2 options';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -182,18 +286,77 @@ function CreateTopicPage() {
     }
 
     setSubmitting(true);
+    setErrors({});
+
     try {
-      const topicData = {
-        title: formData.title.trim(),
-        category: typeof formData.category === 'object' ? formData.category.id : formData.category,
-        content: formData.content.trim()
-      };
+      // Determine if we need FormData (for images) or can use JSON
+      const hasImages = uploadedImages.length > 0;
+      const hasPoll = showPoll && pollQuestion.trim();
+      
+      console.log('Submitting topic with:');
+      console.log('- Has images:', hasImages, 'Count:', uploadedImages.length);
+      console.log('- Has poll:', hasPoll);
+      console.log('- Uploaded images:', uploadedImages);
+      
+      let dataToSend;
+
+      if (hasImages || hasPoll) {
+        // Use FormData if we have images OR poll (to keep consistent format)
+        console.log('Using FormData');
+        const formDataToSend = new FormData();
+        formDataToSend.append('title', formData.title);
+        formDataToSend.append('category', typeof formData.category === 'object' ? formData.category.id : formData.category);
+        formDataToSend.append('content', formData.content.trim());
+
+        // Add tags if any
+        if (formData.tags && formData.tags.length > 0) {
+          formData.tags.forEach(tag => {
+            formDataToSend.append('tags', tag);
+          });
+        }
+
+        // Add images if any
+        if (hasImages) {
+          uploadedImages.forEach((imageData, index) => {
+            formDataToSend.append('images', imageData.file);
+            formDataToSend.append('image_captions', imageData.caption || '');
+            formDataToSend.append('image_orders', index);
+          });
+        }
+
+        // Add poll data if poll is enabled
+        if (hasPoll) {
+          formDataToSend.append('poll_question', pollQuestion);
+          const validOptions = pollOptions.filter(opt => opt.trim());
+          validOptions.forEach((option, index) => {
+            formDataToSend.append('poll_options', option);
+            formDataToSend.append('poll_option_orders', index);
+          });
+        }
+
+        dataToSend = formDataToSend;
+      } else {
+        // Use JSON for simple topics
+        console.log('Using JSON');
+        const jsonData = {
+          title: formData.title,
+          category: typeof formData.category === 'object' ? formData.category.id : formData.category,
+          content: formData.content.trim()
+        };
+
+        // Add tags if any
+        if (formData.tags && formData.tags.length > 0) {
+          jsonData.tags = formData.tags;
+        }
+
+        dataToSend = jsonData;
+      }
 
       let response;
       if (isEditMode) {
-        response = await updateTopic(id, topicData);
+        response = await updateTopic(id, dataToSend);
       } else {
-        response = await createTopic(topicData);
+        response = await createTopic(dataToSend);
       }
 
       // Show success toast
@@ -204,11 +367,25 @@ function CreateTopicPage() {
       setTimeout(() => toast.remove(), 3000);
 
       // Redirect to the topic
-      navigate(`/topic/${response.id}`);
+      console.log('Topic created/updated:', response);
+      if (response && response.id) {
+        navigate(`/topic/${response.id}`);
+      } else {
+        console.error('No topic ID in response:', response);
+        setErrors({ submit: 'Topic created but failed to redirect. Please check your topics list.' });
+        setSubmitting(false);
+      }
     } catch (err) {
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} topic:`, err);
+      console.error('Error details:', err.response?.data);
       if (err.response?.status === 429) {
         setErrors({ submit: '⏱ Please wait before posting again.' });
+      } else if (err.response?.data) {
+        // Show specific error messages from backend
+        const errorMessages = Object.entries(err.response.data)
+          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+          .join('; ');
+        setErrors({ submit: errorMessages || `Failed to ${isEditMode ? 'update' : 'create'} topic.` });
       } else {
         setErrors({ submit: `Failed to ${isEditMode ? 'update' : 'create'} topic. Please try again.` });
       }
@@ -216,33 +393,83 @@ function CreateTopicPage() {
     }
   };
 
-  const renderPreview = () => {
-    // Simple markdown-like preview
-    let preview = formData.content;
-    
-    // Bold
-    preview = preview.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // Italic
-    preview = preview.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    // Code inline
-    preview = preview.replace(/`(.+?)`/g, '<code>$1</code>');
-    // Code block
-    preview = preview.replace(/```([\s\S]+?)```/g, '<pre><code>$1</code></pre>');
-    // Quote
-    preview = preview.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
-    // Links
-    preview = preview.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>');
-    // Line breaks
-    preview = preview.replace(/\n/g, '<br>');
-    
-    return { __html: preview };
+  const renderPreviewModal = () => {
+    if (!showPreviewModal) return null;
+
+    return (
+      <div className="preview-modal-overlay" onClick={() => setShowPreviewModal(false)}>
+        <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="preview-modal-header">
+            <h2>👁️ Preview</h2>
+            <button onClick={() => setShowPreviewModal(false)} className="close-btn">×</button>
+          </div>
+          
+          <div className="preview-modal-content">
+            <div className="preview-topic-header">
+              <h1 className="preview-title">{formData.title || 'Untitled Topic'}</h1>
+              <div className="preview-meta">
+                <span className="preview-author">
+                  <img 
+                    src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.username || 'User'}&background=667eea&color=fff`} 
+                    alt={user?.username}
+                  />
+                  {user?.username}
+                </span>
+                {selectedCategory && (
+                  <span className="preview-category">
+                    {selectedCategory.icon} {selectedCategory.title}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="preview-content">
+              <MDEditor.Markdown source={formData.content || '*No content yet*'} />
+            </div>
+
+            {uploadedImages.length > 0 && (
+              <div className="preview-images">
+                <h3>🖼️ Attached Images</h3>
+                <div className="preview-images-grid">
+                  {uploadedImages.map(img => (
+                    <img key={img.id} src={img.preview} alt={img.name} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {showPoll && pollQuestion && (
+              <div className="preview-poll">
+                <h3>📊 {pollQuestion}</h3>
+                <div className="preview-poll-options">
+                  {pollOptions.filter(opt => opt.trim()).map((option, idx) => (
+                    <div key={idx} className="preview-poll-option">
+                      <input type="radio" disabled />
+                      <span>{option}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {formData.tags.length > 0 && (
+              <div className="preview-tags">
+                {formData.tags.map(tag => (
+                  <span key={tag} className="preview-tag">🏷️ {tag}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (showLoginModal) {
     return (
       <div className="login-modal-overlay">
         <div className="login-modal">
-          <h2>Authentication Required</h2>
+          <h2>🔒 Authentication Required</h2>
           <p>You must be logged in to create a topic.</p>
           <div className="login-modal-actions">
             <Link to="/login" className="btn-primary">Login</Link>
@@ -257,7 +484,10 @@ function CreateTopicPage() {
   if (loading) {
     return (
       <div className="create-topic-page">
-        <div className="loading">Loading...</div>
+        <div className="loading">
+          <div className="spinner"></div>
+          <p>Loading...</p>
+        </div>
       </div>
     );
   }
@@ -266,17 +496,41 @@ function CreateTopicPage() {
     <div className="create-topic-page">
       <div className="create-topic-container">
         {/* Breadcrumb */}
-        <div className="breadcrumb">
-          <Link to="/">Home</Link>
+        <nav className="breadcrumb">
+          <Link to="/">🏠 Home</Link>
           <span className="separator">›</span>
-          <Link to="/">Categories</Link>
-          <span className="separator">›</span>
-          <span className="current">{isEditMode ? 'Edit Topic' : 'Create Topic'}</span>
+          {selectedCategory ? (
+            <>
+              <Link to={`/category/${selectedCategory.id}`}>
+                {selectedCategory.icon} {selectedCategory.title}
+              </Link>
+              <span className="separator">›</span>
+            </>
+          ) : (
+            <>
+              <span>Categories</span>
+              <span className="separator">›</span>
+            </>
+          )}
+          <span className="current">{isEditMode ? 'Edit Topic' : 'Create New Topic'}</span>
+        </nav>
+
+        {/* User Info */}
+        <div className="author-info">
+          <img 
+            src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.username || 'User'}&background=667eea&color=fff`} 
+            alt={user?.username}
+            className="author-avatar"
+          />
+          <div className="author-details">
+            <h3>{user?.username}</h3>
+            <p>{isEditMode ? 'Editing your topic' : 'Starting a new discussion'}</p>
+          </div>
         </div>
 
-        {/* Page Title */}
+        {/* Page Header */}
         <div className="page-header">
-          <h1>{isEditMode ? 'Edit Your Discussion' : 'Start a New Discussion'}</h1>
+          <h1>{isEditMode ? '✏️ Edit Your Discussion' : '✨ Start a New Discussion'}</h1>
           <p className="page-subtitle">{isEditMode ? 'Update your topic to reflect new information or clarify your question.' : 'Share your question, idea, or topic with the community.'}</p>
         </div>
 
@@ -285,7 +539,7 @@ function CreateTopicPage() {
           {/* Category Selection */}
           <div className="form-group">
             <label htmlFor="category" className="form-label">
-              Category <span className="required">*</span>
+              📁 Category <span className="required">*</span>
             </label>
             <select
               id="category"
@@ -293,6 +547,7 @@ function CreateTopicPage() {
               value={formData.category}
               onChange={handleInputChange}
               className={`form-select ${errors.category ? 'error' : ''}`}
+              disabled={isEditMode}
             >
               <option value="">Select a category...</option>
               {categories.map(cat => (
@@ -301,13 +556,20 @@ function CreateTopicPage() {
                 </option>
               ))}
             </select>
-            {errors.category && <span className="error-message">{errors.category}</span>}
+            {errors.category && <span className="error-message">❌ {errors.category}</span>}
+            {selectedCategory && selectedCategory.description && (
+              <div className="category-info">
+                <span className="info-icon">💡</span>
+                <span className="info-text">{selectedCategory.description}</span>
+              </div>
+            )}
           </div>
 
           {/* Title */}
           <div className="form-group">
             <label htmlFor="title" className="form-label">
-              Title <span className="required">*</span>
+              📝 Title <span className="required">*</span>
+              <span className="char-counter">{formData.title.length}/{TITLE_MAX}</span>
             </label>
             <input
               type="text"
@@ -317,93 +579,151 @@ function CreateTopicPage() {
               onChange={handleInputChange}
               placeholder="Enter a clear and descriptive title..."
               className={`form-input ${errors.title ? 'error' : ''}`}
-              maxLength={200}
+              maxLength={TITLE_MAX}
             />
-            {!errors.title && (
-              <span className="field-tip">💡 Good titles get faster answers</span>
+            {!errors.title && formData.title.length === 0 && (
+              <span className="field-tip">
+                💡 Good titles are specific and descriptive
+              </span>
             )}
-            {errors.title && <span className="error-message">{errors.title}</span>}
+            {errors.title && <span className="error-message">❌ {errors.title}</span>}
           </div>
 
           {/* Content Editor */}
-          <div className="form-group">
+          <div className="form-group editor-group">
             <label className="form-label">
-              Content <span className="required">*</span>
+              📄 Content <span className="required">*</span>
             </label>
             
-            {/* Editor Tabs */}
-            <div className="editor-tabs">
+            <MDEditor
+              value={formData.content}
+              onChange={(value) => {
+                setFormData(prev => ({ ...prev, content: value || '' }));
+                if (errors.content) {
+                  setErrors(prev => ({ ...prev, content: '' }));
+                }
+              }}
+              preview="live"
+              height={400}
+              textareaProps={{
+                placeholder: 'Write your content here... Use markdown for formatting!\n\n**Bold** *Italic* [Link](url) `code`'
+              }}
+            />
+            
+            {errors.content && <span className="error-message">❌ {errors.content}</span>}
+            {!errors.content && formData.content && (
+              <span className="field-tip">
+                ✅ {formData.content.length} characters
+              </span>
+            )}
+          </div>
+
+          {/* Image Upload */}
+          <div className="form-group">
+            <label className="form-label">
+              🖼️ Images <span className="optional">(optional)</span>
+            </label>
+            <div className="image-upload-area">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+              />
               <button
                 type="button"
-                className={`editor-tab ${!showPreview ? 'active' : ''}`}
-                onClick={() => setShowPreview(false)}
+                onClick={() => fileInputRef.current?.click()}
+                className="btn-upload-image"
               >
-                ✏️ Write
+                📎 Choose Files
               </button>
+              <span className="upload-hint">PNG, JPG, GIF up to 10MB each</span>
+            </div>
+            
+            {uploadedImages.length > 0 && (
+              <div className="uploaded-images">
+                {uploadedImages.map(img => (
+                  <div key={img.id} className="uploaded-image-item">
+                    <img src={img.preview} alt={img.name} />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(img.id)}
+                      className="remove-image-btn"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Poll Section */}
+          <div className="form-group">
+            <div className="poll-toggle">
               <button
                 type="button"
-                className={`editor-tab ${showPreview ? 'active' : ''}`}
-                onClick={() => setShowPreview(true)}
+                onClick={() => setShowPoll(!showPoll)}
+                className={`btn-toggle-poll ${showPoll ? 'active' : ''}`}
               >
-                👁 Preview
+                📊 {showPoll ? 'Remove Poll' : 'Add Poll'}
               </button>
             </div>
 
-            {/* Toolbar */}
-            {!showPreview && (
-              <div className="editor-toolbar">
-                <button type="button" onClick={() => insertFormatting('bold')} title="Bold" className="toolbar-btn">
-                  <strong>B</strong>
-                </button>
-                <button type="button" onClick={() => insertFormatting('italic')} title="Italic" className="toolbar-btn">
-                  <em>I</em>
-                </button>
-                <div className="toolbar-divider"></div>
-                <button type="button" onClick={() => insertFormatting('list')} title="Bullet List" className="toolbar-btn">
-                  ≡
-                </button>
-                <button type="button" onClick={() => insertFormatting('numberedlist')} title="Numbered List" className="toolbar-btn">
-                  ⒈
-                </button>
-                <div className="toolbar-divider"></div>
-                <button type="button" onClick={() => insertFormatting('quote')} title="Quote" className="toolbar-btn">
-                  "
-                </button>
-                <button type="button" onClick={() => insertFormatting('code')} title="Inline Code" className="toolbar-btn">
-                  &lt;/&gt;
-                </button>
-                <button type="button" onClick={() => insertFormatting('codeblock')} title="Code Block" className="toolbar-btn">
-                  { }
-                </button>
-                <button type="button" onClick={() => insertFormatting('link')} title="Insert Link" className="toolbar-btn">
-                  🔗
-                </button>
-                <button type="button" className="toolbar-btn" title="Emoji">
-                  🙂
-                </button>
+            {showPoll && (
+              <div className="poll-creator">
+                <input
+                  type="text"
+                  value={pollQuestion}
+                  onChange={(e) => setPollQuestion(e.target.value)}
+                  placeholder="What's your poll question?"
+                  className="poll-question-input"
+                />
+                
+                <div className="poll-options">
+                  {pollOptions.map((option, index) => (
+                    <div key={index} className="poll-option-item">
+                      <input
+                        type="text"
+                        value={option}
+                        onChange={(e) => handlePollOptionChange(index, e.target.value)}
+                        placeholder={`Option ${index + 1}`}
+                        className="poll-option-input"
+                      />
+                      {pollOptions.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePollOption(index)}
+                          className="remove-poll-option"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {pollOptions.length < 10 && (
+                  <button
+                    type="button"
+                    onClick={handleAddPollOption}
+                    className="btn-add-poll-option"
+                  >
+                    + Add Option
+                  </button>
+                )}
+                
+                {errors.poll && <span className="error-message">❌ {errors.poll}</span>}
               </div>
             )}
-
-            {/* Editor Area */}
-            {!showPreview ? (
-              <textarea
-                name="content"
-                value={formData.content}
-                onChange={handleInputChange}
-                placeholder="Describe your topic here...&#10;Include details, examples, or code snippets."
-                className={`content-textarea ${errors.content ? 'error' : ''}`}
-              />
-            ) : (
-              <div className="content-preview" dangerouslySetInnerHTML={renderPreview()} />
-            )}
-            
-            {errors.content && <span className="error-message">{errors.content}</span>}
           </div>
 
           {/* Tags */}
           <div className="form-group">
             <label htmlFor="tags" className="form-label">
-              Tags <span className="optional">(optional, up to 5)</span>
+              🏷️ Tags <span className="optional">(optional, up to 5, max 50 characters each)</span>
             </label>
             <div className="tags-container">
               {formData.tags.map(tag => (
@@ -415,48 +735,101 @@ function CreateTopicPage() {
                 </span>
               ))}
               {formData.tags.length < 5 && (
-                <input
-                  type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={handleAddTag}
-                  placeholder="Type and press Enter..."
-                  className="tag-input"
-                />
+                <div className="tag-input-wrapper">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => handleTagInputChange(e.target.value)}
+                    onKeyDown={handleAddTag}
+                    onFocus={() => {
+                      if (tagInput.trim().length > 0 && tagSuggestions.length > 0) {
+                        setShowTagSuggestions(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Delay to allow clicking on suggestions
+                      setTimeout(() => setShowTagSuggestions(false), 200);
+                    }}
+                    placeholder="Type and press Enter..."
+                    className="tag-input"
+                    maxLength={50}
+                  />
+                  {showTagSuggestions && tagSuggestions.length > 0 && (
+                    <div className="tag-suggestions">
+                      {tagSuggestions.slice(0, 5).map(tag => (
+                        <div
+                          key={tag}
+                          className="tag-suggestion-item"
+                          onClick={() => handleSelectTag(tag)}
+                        >
+                          🏷️ {tag}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-            {formData.tags.length === 0 && (
-              <span className="field-tip">💡 Tags help others find your post</span>
+            {tagInput.length > 0 && (
+              <span className={`char-counter ${tagInput.length >= 50 ? 'limit-reached' : ''}`}>
+                {tagInput.length}/50 characters
+              </span>
+            )}
+            {errors.tags && <span className="error-message">❌ {errors.tags}</span>}
+            {formData.tags.length === 0 && !errors.tags && (
+              <span className="field-tip">💡 Tags help others find your post (e.g., "maintenance", "repair", "diy")</span>
             )}
           </div>
 
           {/* Submit Error */}
           {errors.submit && (
             <div className="submit-error">
-              {errors.submit}
+              ❌ {errors.submit}
             </div>
           )}
 
           {/* Submit Bar */}
           <div className="submit-bar">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="btn-cancel"
-              disabled={submitting}
-            >
-              Cancel
-            </button>
+            <div className="left-actions">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="btn-cancel"
+                disabled={submitting}
+              >
+                ← Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPreviewModal(true)}
+                className="btn-preview"
+                disabled={submitting}
+              >
+                👁️ Preview
+              </button>
+            </div>
             <button
               type="submit"
               className="btn-publish"
               disabled={submitting}
             >
-              {submitting ? (isEditMode ? 'Updating...' : 'Publishing...') : (isEditMode ? 'Update Topic' : 'Publish Topic')}
+              {submitting ? (
+                <>
+                  <span className="spinner-small"></span>
+                  {isEditMode ? 'Updating...' : 'Publishing...'}
+                </>
+              ) : (
+                <>
+                  {isEditMode ? '✅ Update Topic' : '🚀 Publish Topic'}
+                </>
+              )}
             </button>
           </div>
         </form>
       </div>
+
+      {/* Preview Modal */}
+      {renderPreviewModal()}
     </div>
   );
 }

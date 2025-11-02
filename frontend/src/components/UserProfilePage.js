@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getUserProfile, getUserReplies, getUserBookmarks, getUserTopics } from '../services/api';
+import { getUserProfile, getUserReplies, getUserBookmarks, getUserTopics, getUserGamification } from '../services/api';
 import '../styles/UserProfilePage.css';
 
 function UserProfilePage() {
@@ -17,6 +17,13 @@ function UserProfilePage() {
   const [userBookmarks, setUserBookmarks] = useState([]);
   const [userTopics, setUserTopics] = useState([]);
   const [saving, setSaving] = useState(false);
+  
+  // Badges gamification state
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [selectedBadge, setSelectedBadge] = useState(null);
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+  const [gamificationData, setGamificationData] = useState(null);
+  const [gamificationLoading, setGamificationLoading] = useState(false);
   
   // Settings form state
   const [settingsData, setSettingsData] = useState({
@@ -52,8 +59,8 @@ function UserProfilePage() {
         
         // Initialize settings data with profile data
         setSettingsData({
-          username: data.user?.username || data.username || '',
-          email: data.user?.email || data.email || '',
+          username: data.username || '',
+          email: data.email || '',
           bio: data.bio || '',
           location: '',
           githubUrl: '',
@@ -128,7 +135,49 @@ function UserProfilePage() {
     };
 
     fetchTopics();
-  }, [activeTab, id]);  const getTimeAgo = (dateString) => {
+  }, [activeTab, id]);
+
+  // Fetch gamification data when badges tab is active
+  useEffect(() => {
+    const fetchGamificationData = async () => {
+      if (activeTab === 'badges' && id) {
+        setGamificationLoading(true);
+        try {
+          const data = await getUserGamification(id);
+          console.log('Gamification data received:', data);
+          console.log('Badges array:', data?.badges);
+          setGamificationData(data);
+        } catch (error) {
+          console.error('Error fetching gamification data:', error);
+          console.error('Error details:', error.response?.data);
+        } finally {
+          setGamificationLoading(false);
+        }
+      }
+    };
+
+    fetchGamificationData();
+  }, [activeTab, id]);
+
+  // Manual refresh function for gamification data
+  const refreshGamificationData = async () => {
+    if (id) {
+      setGamificationLoading(true);
+      try {
+        const data = await getUserGamification(id);
+        console.log('Gamification data refreshed:', data);
+        console.log('Badges array:', data?.badges);
+        setGamificationData(data);
+      } catch (error) {
+        console.error('Error refreshing gamification data:', error);
+        console.error('Error details:', error.response?.data);
+      } finally {
+        setGamificationLoading(false);
+      }
+    }
+  };
+
+  const getTimeAgo = (dateString) => {
     const now = new Date();
     const past = new Date(dateString);
     const diffMs = now - past;
@@ -183,11 +232,53 @@ function UserProfilePage() {
   }
 
   const userActivity = [
-    { type: 'joined', text: 'Joined the forum', date: profile?.user?.date_joined },
+    { type: 'joined', text: 'Joined the forum', date: profile?.date_joined },
     { type: 'badge', text: 'Earned "Problem Solver" badge', date: '2024-05-10T10:00:00Z' },
     { type: 'post', text: 'Posted new topic', title: 'How to integrate Zephyr Scale', date: '2024-08-15T10:30:00Z' },
     { type: 'like', text: 'Received 5 likes on a post', date: '2024-09-01T14:20:00Z' }
   ];
+
+  // Badge categories
+  const badgeCategories = [
+    { id: 'all', label: 'All', icon: '🎖' },
+    { id: 'unlocked', label: 'Unlocked', icon: '✅' },
+    { id: 'locked', label: 'Locked', icon: '🔒' },
+    { id: 'contribution', label: 'Contributions', icon: '📚' },
+    { id: 'social', label: 'Social', icon: '❤️' },
+    { id: 'helpful', label: 'Helpful', icon: '✅' },
+    { id: 'streaks', label: 'Streaks', icon: '🔥' },
+    { id: 'special', label: 'Special', icon: '🎄' }
+  ];
+
+  // Get all badges from gamification data
+  const allBadges = gamificationData?.badges || [];
+
+  // Filter badges
+  const filteredBadges = allBadges.filter(badge => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'unlocked') return badge.unlocked;
+    if (activeFilter === 'locked') return !badge.unlocked;
+    return badge.category === activeFilter;
+  });
+
+  // Debug logging
+  console.log('All badges:', allBadges);
+  console.log('Active filter:', activeFilter);
+  console.log('Filtered badges:', filteredBadges);
+
+  const handleBadgeClick = (badge) => {
+    setSelectedBadge(badge);
+    setShowBadgeModal(true);
+  };
+
+  const closeBadgeModal = () => {
+    setShowBadgeModal(false);
+    setSelectedBadge(null);
+  };
+
+  const xpPercentage = gamificationData?.level_data 
+    ? (gamificationData.level_data.current_xp / gamificationData.level_data.xp_to_next_level) * 100 
+    : 0;
 
   const badges = [
     { name: 'Problem Solver', icon: '🏅', description: 'Awarded for 10 helpful answers', earned: '2024-05-10' },
@@ -210,8 +301,8 @@ function UserProfilePage() {
           <div className="profile-info-section">
             <div className="profile-name-row">
               <div className="profile-names">
-                <h1 className="profile-display-name">{profile.user.username}</h1>
-                <p className="profile-handle">@{profile.user.username.toLowerCase().replace(' ', '_')}</p>
+                <h1 className="profile-display-name">{profile.username}</h1>
+                <p className="profile-handle">@{profile.username.toLowerCase().replace(' ', '_')}</p>
               </div>
               {!isOwnProfile && (
                 <div className="profile-action-buttons">
@@ -234,7 +325,7 @@ function UserProfilePage() {
               <span className="badge-tag moderator">🛡 Moderator</span>
               <span className="badge-tag top-member">⭐ Top Member</span>
               <span className="profile-meta">🌍 Georgia</span>
-              <span className="profile-meta">🕓 Joined: {new Date(profile.user.date_joined).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+              <span className="profile-meta">🕓 Joined: {new Date(profile.date_joined).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
             </div>
 
             <div className="profile-social-links">
@@ -301,13 +392,13 @@ function UserProfilePage() {
           <div className="sidebar-card">
             <h3>Member Since</h3>
             <p className="joined-date">
-              {new Date(profile.user.date_joined).toLocaleDateString('en-US', { 
+              {new Date(profile.date_joined).toLocaleDateString('en-US', { 
                 month: 'long', 
                 year: 'numeric' 
               })}
             </p>
             <div className="membership-duration">
-              {getTimeAgo(profile.user.date_joined)}
+              {getTimeAgo(profile.date_joined)}
             </div>
           </div>
 
@@ -541,21 +632,162 @@ function UserProfilePage() {
 
             {/* Badges Tab */}
             {activeTab === 'badges' && (
-              <div className="badges-grid">
-                {badges.map((badge, index) => (
-                  <div key={index} className="badge-card">
-                    <div className="badge-icon-large">{badge.icon}</div>
-                    <h4 className="badge-name">{badge.name}</h4>
-                    <p className="badge-description">{badge.description}</p>
-                    <span className="badge-earned-date">
-                      Earned: {new Date(badge.earned).toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric',
-                        year: 'numeric' 
-                      })}
-                    </span>
+              <div className="badges-content">
+                {gamificationLoading ? (
+                  <div className="loading-state">Loading gamification data...</div>
+                ) : gamificationData ? (
+                  <>
+                    {/* XP Progress Card */}
+                    <div className="gamification-progress-card">
+                      <div className="gamification-header">
+                        <div className="level-info">
+                          <h2>Level {gamificationData.level_data?.level || 1} - {gamificationData.level_data?.level_name || 'Newcomer'}</h2>
+                          <p className="rank-badge">🥇 {gamificationData.level_data?.level_name || 'Member'}</p>
+                        </div>
+                        <div className="leaderboard-position">
+                          ⭐ Rank #{gamificationData.leaderboard_position || 'N/A'}
+                          <button 
+                            className="refresh-button" 
+                            onClick={refreshGamificationData}
+                            disabled={gamificationLoading}
+                            title="Refresh gamification data"
+                          >
+                            🔄 Refresh
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="xp-section">
+                        <div className="xp-text">
+                          XP: {(gamificationData.level_data?.current_xp || 0).toLocaleString()} / {(gamificationData.level_data?.xp_to_next_level || 100).toLocaleString()} to next level
+                        </div>
+                        <div className="xp-progress-bar">
+                          <div className="xp-progress-fill" style={{ width: `${xpPercentage}%` }}></div>
+                        </div>
+                        <div className="xp-remaining">
+                          {(gamificationData.level_data?.xp_to_next_level || 100) - (gamificationData.level_data?.current_xp || 0)} XP needed for Level {(gamificationData.level_data?.level || 1) + 1}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Badge Filters */}
+                    <div className="badge-filters">
+                      {badgeCategories.map(cat => (
+                        <button
+                          key={cat.id}
+                          className={`badge-filter-btn ${activeFilter === cat.id ? 'active' : ''}`}
+                          onClick={() => setActiveFilter(cat.id)}
+                        >
+                          <span className="filter-icon">{cat.icon}</span>
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Badges Grid */}
+                    <div className="badges-grid-enhanced">
+                      {filteredBadges.length > 0 ? (
+                        filteredBadges.map(badge => (
+                          <div
+                            key={badge.id}
+                            className={`badge-card-enhanced ${badge.unlocked ? 'unlocked' : 'locked'}`}
+                            onClick={() => handleBadgeClick(badge)}
+                          >
+                            <div className="badge-status-indicator">
+                              {badge.unlocked ? '✅' : '🔒'}
+                            </div>
+                            <div className="badge-icon-large">{badge.icon}</div>
+                            <h4 className="badge-name">{badge.name}</h4>
+                            
+                            {badge.unlocked ? (
+                              <div className="badge-unlocked-info">
+                                <p className="badge-earned">Earned: {badge.earned_date}</p>
+                                <p className="badge-description">{badge.description}</p>
+                              </div>
+                            ) : (
+                              <div className="badge-locked-info">
+                                <p className="badge-requirement">{badge.requirement}</p>
+                                <div className="badge-progress-section">
+                                  <div className="progress-text">
+                                    {badge.progress}/{badge.required_count}
+                                  </div>
+                                  <div className="progress-bar-small">
+                                    <div 
+                                      className="progress-fill-small" 
+                                      style={{ width: `${(badge.progress / badge.required_count) * 100}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="no-badges-message">
+                          <p>No badges found in this category.</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="no-data-message">
+                    <p>Gamification data not available.</p>
                   </div>
-                ))}
+                )}
+
+                {/* Badge Details Modal */}
+                {showBadgeModal && selectedBadge && (
+                  <div className="badge-modal-overlay" onClick={closeBadgeModal}>
+                    <div className="badge-modal" onClick={(e) => e.stopPropagation()}>
+                      <button className="modal-close-btn" onClick={closeBadgeModal}>✕</button>
+                      
+                      <div className="modal-header">
+                        <div className="modal-badge-icon">{selectedBadge.icon}</div>
+                        <h2>{selectedBadge.name}</h2>
+                      </div>
+
+                      <div className="modal-body">
+                        <p className="modal-description">{selectedBadge.description}</p>
+                        
+                        {selectedBadge.unlocked ? (
+                          <div className="modal-unlocked">
+                            <p className="earned-date">✅ Earned: {selectedBadge.earned_date}</p>
+                            <div className="requirement-complete">
+                              ✔ {selectedBadge.requirement} (completed)
+                            </div>
+                            <div className="xp-reward">
+                              🌟 +{selectedBadge.xp_reward || 0} XP
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="modal-locked">
+                            <h3>Requirements:</h3>
+                            <div className="requirement-item">
+                              {selectedBadge.requirement}
+                            </div>
+                            
+                            <div className="progress-section">
+                              <div className="progress-header">
+                                <span>Progress</span>
+                                <span>{selectedBadge.progress} / {selectedBadge.required_count}</span>
+                              </div>
+                              <div className="progress-bar-modal">
+                                <div 
+                                  className="progress-fill-modal" 
+                                  style={{ width: `${(selectedBadge.progress / selectedBadge.required_count) * 100}%` }}
+                                ></div>
+                              </div>
+                            </div>
+
+                            <div className="xp-reward-preview">
+                              🌟 Earn {selectedBadge.xp_reward || 0} XP when unlocked
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

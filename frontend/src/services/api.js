@@ -16,6 +16,12 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // If sending FormData, remove Content-Type header to let browser set it with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    
     return config;
   },
   (error) => {
@@ -87,8 +93,13 @@ export const getCategories = async () => {
   return response.data;
 };
 
-export const getTopics = async () => {
-  const response = await api.get('/topics/');
+export const getCategoryTopics = async (categoryId, params = {}) => {
+  const response = await api.get(`/categories/${categoryId}/topics/`, { params });
+  return response.data;
+};
+
+export const getTopics = async (params = {}) => {
+  const response = await api.get('/topics/', { params });
   return response.data;
 };
 
@@ -132,6 +143,11 @@ export const likeReply = async (replyId) => {
   return response.data;
 };
 
+export const deleteReply = async (replyId) => {
+  const response = await api.delete(`/replies/${replyId}/`);
+  return response.data;
+};
+
 export const getReportReasons = async () => {
   const response = await api.get('/report-reasons/');
   return response.data;
@@ -154,6 +170,69 @@ export const getUserBookmarks = async (profileId) => {
 
 export const getUserTopics = async (profileId) => {
   const response = await api.get(`/profiles/${profileId}/topics/`);
+  return response.data;
+};
+
+export const searchAll = async (query, filters = {}) => {
+  const params = new URLSearchParams({ q: query, ...filters });
+  const response = await api.get(`/search/?${params.toString()}`);
+  return response.data;
+};
+
+export const votePoll = async (pollId, optionId) => {
+  const response = await api.post(`/polls/${pollId}/vote/`, { option_id: optionId });
+  return response.data;
+};
+
+// Gamification API calls
+export const getUserGamification = async (userId) => {
+  const response = await api.get(`/gamification/user/${userId}/`);
+  return response.data;
+};
+
+export const getMyLevel = async () => {
+  const response = await api.get('/gamification/user-levels/my_level/');
+  return response.data;
+};
+
+export const getLeaderboard = async () => {
+  const response = await api.get('/gamification/user-levels/leaderboard/');
+  return response.data;
+};
+
+export const getAllBadges = async () => {
+  const response = await api.get('/gamification/badges/');
+  return response.data;
+};
+
+export const getBadgesByCategory = async () => {
+  const response = await api.get('/gamification/badges/categories/');
+  return response.data;
+};
+
+export const getMyBadges = async () => {
+  const response = await api.get('/gamification/user-badges/my_badges/');
+  return response.data;
+};
+
+export const getUserBadges = async (userId) => {
+  const response = await api.get(`/gamification/user-badges/user_badges/?user_id=${userId}`);
+  return response.data;
+};
+
+export const getMyStreak = async () => {
+  const response = await api.get('/gamification/streaks/my_streak/');
+  return response.data;
+};
+
+export const updateStreak = async () => {
+  const response = await api.post('/gamification/streaks/update_streak/');
+  return response.data;
+};
+
+// Tags API
+export const getPopularTags = async () => {
+  const response = await api.get('/tags/popular/');
   return response.data;
 };
 

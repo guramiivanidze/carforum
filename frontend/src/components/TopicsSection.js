@@ -27,24 +27,26 @@ function TopicsSection({ topics, loading }) {
   return (
     <section className="topics-section">
       <h2>Latest Topics</h2>
-      {topics.map((topic) => (
-        <Link to={`/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="topic-card">
-            <div className="topic-header">
-              <div className="topic-avatar">{topic.author.avatar}</div>
-              <div className="topic-info">
-                <div className="topic-title">{topic.title}</div>
-                <div className="topic-meta">
-                  <span className="category-tag">{topic.category_name}</span>
-                  <span className="topic-stats">
-                    💬 {topic.replies_count} replies | 🕒 Updated {getTimeAgo(topic.updated_at)}
-                  </span>
+      <div className="topics-list">
+        {topics.map((topic) => (
+          <Link to={`/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+            <div className="topic-card">
+              <div className="topic-header">
+                <div className="topic-avatar">{topic.author.avatar}</div>
+                <div className="topic-info">
+                  <div className="topic-title">{topic.title}</div>
+                  <div className="topic-meta">
+                    <span className="category-tag">{topic.category_name}</span>
+                    <span className="topic-stats">
+                      💬 {topic.replies_count} replies | 🕒 Updated {getTimeAgo(topic.updated_at)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </Link>
-      ))}
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }

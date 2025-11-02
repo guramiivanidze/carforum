@@ -14,7 +14,9 @@ function ReportModal({ replyId, onClose, onSuccess }) {
     const fetchReasons = async () => {
       try {
         const data = await getReportReasons();
-        setReasons(data);
+        // Handle both array and paginated response formats
+        const reasonsArray = Array.isArray(data) ? data : (data.results || []);
+        setReasons(reasonsArray);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching report reasons:', err);
@@ -86,13 +88,13 @@ function ReportModal({ replyId, onClose, onSuccess }) {
                   required
                 >
                   <option value="">-- Select a reason --</option>
-                  {reasons.map((reason) => (
+                  {Array.isArray(reasons) && reasons.map((reason) => (
                     <option key={reason.id} value={reason.id}>
                       {reason.title}
                     </option>
                   ))}
                 </select>
-                {selectedReason && (
+                {selectedReason && Array.isArray(reasons) && (
                   <p className="reason-description">
                     {reasons.find(r => r.id === parseInt(selectedReason))?.description}
                   </p>

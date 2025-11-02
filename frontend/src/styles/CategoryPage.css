@@ -149,6 +149,33 @@
   cursor: not-allowed;
 }
 
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pagination-controls label {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.items-per-page-select {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: white;
+  cursor: pointer;
+  color: #374151;
+}
+
+.items-per-page-select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
 .sort-dropdown {
   display: flex;
   align-items: center;
@@ -360,11 +387,22 @@
 }
 
 /* Pagination */
+.pagination-wrapper {
+  margin-top: 2rem;
+}
+
+.pagination-info {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
 .pagination {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 0.5rem;
-  margin-top: 2rem;
 }
 
 .page-btn {
@@ -376,6 +414,7 @@
   color: #374151;
   font-weight: 500;
   transition: all 0.2s;
+  min-width: 40px;
 }
 
 .page-btn:hover:not(:disabled) {
@@ -392,6 +431,12 @@
 .page-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+  color: #6b7280;
+  padding: 0 0.5rem;
+  user-select: none;
 }
 
 /* Sidebar */
@@ -452,19 +497,37 @@
 }
 
 .rules-list li {
-  padding: 0.5rem 0;
-  color: #6b7280;
-  font-size: 0.95rem;
-  position: relative;
-  padding-left: 1.5rem;
+  padding: 0.75rem 0;
+  color: #374151;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #f3f4f6;
 }
 
-.rules-list li::before {
-  content: '✓';
-  position: absolute;
-  left: 0;
-  color: #10b981;
-  font-weight: bold;
+.rules-list li:last-child {
+  border-bottom: none;
+}
+
+.rules-list li strong {
+  display: block;
+  color: #1f2937;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  font-size: 0.95rem;
+}
+
+.rules-list li p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.no-rules {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1rem 0;
+  font-style: italic;
 }
 
 .view-rules-btn {
@@ -477,6 +540,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  margin-top: 0.5rem;
 }
 
 .view-rules-btn:hover {
@@ -499,11 +563,30 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .tag-pill:hover {
   background: #2563eb;
   color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.tag-count {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+.no-tags {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1rem 0;
+  font-style: italic;
 }
 
 /* Responsive */

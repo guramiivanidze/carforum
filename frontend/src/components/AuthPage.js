@@ -31,7 +31,8 @@ function AuthPage() {
 
   // Register form state
   const [registerData, setRegisterData] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     username: '',
     email: '',
     password: '',
@@ -78,8 +79,12 @@ function AuthPage() {
   const validateRegister = () => {
     const newErrors = {};
     
-    if (!registerData.fullName) {
-      newErrors.fullName = 'Full name is required';
+    if (!registerData.firstName) {
+      newErrors.firstName = 'First name is required';
+    }
+    
+    if (!registerData.lastName) {
+      newErrors.lastName = 'Last name is required';
     }
     
     if (!registerData.username) {
@@ -163,7 +168,8 @@ function AuthPage() {
     
     try {
       const response = await apiRegister({
-        fullName: registerData.fullName,
+        firstName: registerData.firstName,
+        lastName: registerData.lastName,
         username: registerData.username,
         email: registerData.email,
         password: registerData.password,
@@ -200,7 +206,7 @@ function AuthPage() {
     navigate(tab === 'register' ? '/register' : '/login');
     setErrors({});
     setLoginData({ email: '', password: '' });
-    setRegisterData({ fullName: '', username: '', email: '', password: '', confirmPassword: '' });
+    setRegisterData({ firstName: '', lastName: '', username: '', email: '', password: '', confirmPassword: '' });
     setRememberMe(false);
     setAgreeToTerms(false);
   };
@@ -376,19 +382,35 @@ function AuthPage() {
               </div>
             )}
             
-            {/* Full Name Field */}
-            <div className="form-field">
-              <label htmlFor="register-fullname">Full Name</label>
-              <input
-                type="text"
-                id="register-fullname"
-                name="fullName"
-                value={registerData.fullName}
-                onChange={handleRegisterChange}
-                className={errors.fullName ? 'error' : ''}
-                placeholder="Enter your full name"
-              />
-              {errors.fullName && <span className="error-message">{errors.fullName}</span>}
+            {/* Name Fields Row */}
+            <div className="form-row">
+              <div className="form-field">
+                <label htmlFor="register-firstname">First Name</label>
+                <input
+                  type="text"
+                  id="register-firstname"
+                  name="firstName"
+                  value={registerData.firstName}
+                  onChange={handleRegisterChange}
+                  className={errors.firstName ? 'error' : ''}
+                  placeholder="Enter first name"
+                />
+                {errors.firstName && <span className="error-message">{errors.firstName}</span>}
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="register-lastname">Last Name</label>
+                <input
+                  type="text"
+                  id="register-lastname"
+                  name="lastName"
+                  value={registerData.lastName}
+                  onChange={handleRegisterChange}
+                  className={errors.lastName ? 'error' : ''}
+                  placeholder="Enter last name"
+                />
+                {errors.lastName && <span className="error-message">{errors.lastName}</span>}
+              </div>
             </div>
 
             {/* Username Field */}

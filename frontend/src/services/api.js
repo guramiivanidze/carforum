@@ -136,6 +136,16 @@ export const uploadUserImage = async (userId, imageFile) => {
   return response.data;
 };
 
+export const updateProfile = async (userId, profileData) => {
+  const response = await api.patch(`/profiles/${userId}/update_profile/`, profileData);
+  return response.data;
+};
+
+export const changePassword = async (userId, passwordData) => {
+  const response = await api.post(`/profiles/${userId}/change_password/`, passwordData);
+  return response.data;
+};
+
 export const getUserReplies = async (profileId) => {
   const response = await api.get(`/profiles/${profileId}/replies/`);
   return response.data;
@@ -256,6 +266,27 @@ export const updateStreak = async () => {
 // Tags API
 export const getPopularTags = async () => {
   const response = await api.get('/tags/popular/');
+  return response.data;
+};
+
+// Follow/Following APIs
+export const toggleFollow = async (userId) => {
+  const response = await api.post(`/profiles/${userId}/follow/`);
+  return response.data;
+};
+
+export const getFollowers = async (userId, params = {}) => {
+  const response = await api.get(`/profiles/${userId}/followers/`, { params });
+  return response.data;
+};
+
+export const getFollowing = async (userId, params = {}) => {
+  const response = await api.get(`/profiles/${userId}/following/`, { params });
+  return response.data;
+};
+
+export const getFollowingTopics = async (userId, params = {}) => {
+  const response = await api.get(`/profiles/${userId}/following_topics/`, { params });
   return response.data;
 };
 

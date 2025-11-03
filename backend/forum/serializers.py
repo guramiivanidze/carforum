@@ -13,7 +13,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'points', 'date_joined', 'user_image_url']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'points', 'date_joined', 'user_image_url']
     
     def get_user_image_url(self, obj):
         """Get the full URL for the user image"""
@@ -275,6 +275,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='user.id', read_only=True)  # Use user ID as primary ID
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
+    first_name = serializers.CharField(source='user.first_name', read_only=True)
+    last_name = serializers.CharField(source='user.last_name', read_only=True)
     date_joined = serializers.DateTimeField(source='user.date_joined', read_only=True)
     user_image_url = serializers.SerializerMethodField()
     
@@ -284,13 +286,21 @@ class UserProfileSerializer(serializers.ModelSerializer):
     likes_given = serializers.SerializerMethodField()
     likes_received = serializers.SerializerMethodField()
     followers_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
-        fields = ['id', 'username', 'email', 'points', 'bio', 'date_joined', 'user_image', 'user_image_url',
-                  'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count']
-        read_only_fields = ['id', 'username', 'email', 'points', 'date_joined', 'user_image_url',
-                            'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'points', 'bio', 'date_joined', 'user_image', 'user_image_url',
+                  'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count', 'following_count', 'is_following']
+        read_only_fields = ['id', 'username', 'email', 'first_name', 'last_name', 'points', 'date_joined', 'user_image_url',
+                            'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count', 'following_count', 'is_following']
+    
+    def validate_bio(self, value):
+        """Validate bio field"""
+        if value and len(value) > 500:
+            raise serializers.ValidationError("Bio must be 500 characters or less.")
+        return value
     
     def get_user_image_url(self, obj):
         """Get the full URL for the user image"""
@@ -333,8 +343,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     def get_followers_count(self, obj):
         """Get number of followers - placeholder for now"""
-        # TODO: Implement followers functionality later
-        return 0
+        from .models import Follow
+        return Follow.objects.filter(following=obj.user).count()
+
+    def get_following_count(self, obj):
+        from .models import Follow
+        return Follow.objects.filter(follower=obj.user).count()
+
+    def get_is_following(self, obj):
+        """Whether the requesting user is following this profile"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        from .models import Follow
+        return Follow.objects.filter(follower=request.user, following=obj.user).exists()
 
 
 class ReportReasonSerializer(serializers.ModelSerializer):
@@ -373,9 +395,32 @@ class BookmarkSerializer(serializers.ModelSerializer):
         }
 
 
+
 class PollVoteSerializer(serializers.ModelSerializer):
     """Serializer for voting on polls"""
     class Meta:
         model = PollVote
         fields = ['id', 'poll_option', 'user', 'created_at']
         read_only_fields = ['user', 'created_at']
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True, min_length=8)
+    confirm_password = serializers.CharField(required=True, write_only=True)
+    
+    def validate(self, attrs):
+        """Validate that new password and confirm password match"""
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+        return attrs
+    
+    def validate_new_password(self, value):
+        """Validate password strength"""
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
+        if not any(char.isdigit() for char in value):
+            raise serializers.ValidationError("Password must contain at least one number.")
+        if not any(char.isalpha() for char in value):
+            raise serializers.ValidationError("Password must contain at least one letter.")
+        return value

@@ -196,6 +196,17 @@
   margin-bottom: 1.25rem;
 }
 
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.form-row .form-field {
+  margin-bottom: 0;
+}
+
 .form-field label {
   display: block;
   font-weight: 600;
@@ -526,6 +537,15 @@
   .form-field input {
     padding: 0.75rem;
     font-size: 0.95rem;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  
+  .form-row .form-field {
+    margin-bottom: 1.25rem;
   }
 
   .auth-submit-btn {

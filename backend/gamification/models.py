@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from cloudinary.models import CloudinaryField
 
 
 class Level(models.Model):
@@ -8,7 +9,7 @@ class Level(models.Model):
     name = models.CharField(max_length=50)
     xp_required = models.IntegerField(help_text='Total XP required to reach this level')
     icon = models.CharField(max_length=10, default='⭐', blank=True)
-    image = models.ImageField(upload_to='level_images/', null=True, blank=True, help_text='Custom level image (optional, falls back to icon)')
+    image = CloudinaryField('image', null=True, blank=True, folder='level_images', help_text='Custom level image (optional, falls back to icon)')
     color = models.CharField(max_length=7, default='#3b82f6', help_text='Hex color code')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

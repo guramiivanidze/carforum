@@ -11,7 +11,7 @@ from .models import (
 )
 from .serializers import (
     CategorySerializer, TopicSerializer, TopicDetailSerializer,
-    ReplySerializer, UserProfileSerializer, ReportReasonSerializer, ReportSerializer, 
+    ReplySerializer, UserSerializer, UserProfileSerializer, ReportReasonSerializer, ReportSerializer, 
     BookmarkSerializer, PollSerializer, TagSerializer
 )
 from .pagination import CustomPageNumberPagination
@@ -579,6 +579,88 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         topics = Topic.objects.filter(author=profile.user).select_related('author', 'category').order_by('-created_at')
         serializer = TopicSerializer(topics, many=True, context={'request': request})
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def follow(self, request, pk=None):
+        """Follow or unfollow a user (toggle)"""
+        profile = self.get_object()
+        target_user = profile.user
+        user = request.user
+
+        if user == target_user:
+            return Response({'error': 'You cannot follow yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from .models import Follow
+
+        following_record = Follow.objects.filter(follower=user, following=target_user).first()
+
+        if following_record:
+            # Unfollow
+            following_record.delete()
+            is_following = False
+        else:
+            # Follow
+            Follow.objects.create(follower=user, following=target_user)
+            is_following = True
+
+        # Return updated follower counts
+        followers_count = Follow.objects.filter(following=target_user).count()
+        following_count = Follow.objects.filter(follower=target_user).count()
+
+        return Response({
+            'is_following': is_following,
+            'followers_count': followers_count,
+            'following_count': following_count
+        })
+
+    @action(detail=True, methods=['get'])
+    def followers(self, request, pk=None):
+        """Return list of users who follow this profile"""
+        profile = self.get_object()
+        target_user = profile.user
+
+        from .models import Follow
+        followers_qs = Follow.objects.filter(following=target_user).select_related('follower')
+
+        # Extract follower users
+        users = [f.follower for f in followers_qs]
+
+        # Apply pagination
+        paginator = CustomPageNumberPagination()
+        page = paginator.paginate_queryset(users, request)
+        serializer = UserSerializer(page, many=True, context={'request': request})
+        return paginator.get_paginated_response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def following(self, request, pk=None):
+        """Return list of users this profile is following"""
+        profile = self.get_object()
+        source_user = profile.user
+
+        from .models import Follow
+        following_qs = Follow.objects.filter(follower=source_user).select_related('following')
+        users = [f.following for f in following_qs]
+
+        paginator = CustomPageNumberPagination()
+        page = paginator.paginate_queryset(users, request)
+        serializer = UserSerializer(page, many=True, context={'request': request})
+        return paginator.get_paginated_response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def following_topics(self, request, pk=None):
+        """Return topics authored by users this profile is following"""
+        profile = self.get_object()
+        source_user = profile.user
+
+        from .models import Follow
+        following_user_ids = Follow.objects.filter(follower=source_user).values_list('following_id', flat=True)
+
+        topics = Topic.objects.filter(author_id__in=list(following_user_ids)).select_related('author', 'category').order_by('-created_at')
+
+        paginator = CustomPageNumberPagination()
+        page = paginator.paginate_queryset(topics, request)
+        serializer = TopicSerializer(page, many=True, context={'request': request})
+        return paginator.get_paginated_response(serializer.data)
     
     @action(detail=True, methods=['get'])
     def bookmarks(self, request, pk=None):
@@ -616,6 +698,94 @@ class UserProfileViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
+    def update_profile(self, request, pk=None):
+        """Update user profile (first_name, last_name, bio)"""
+        profile = self.get_object()
+        
+        # Check if user is trying to update their own profile
+        if profile.user != request.user:
+            return Response(
+                {'error': 'You can only update your own profile.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Update first_name and last_name on User model if provided
+        first_name = request.data.get('firstName')
+        last_name = request.data.get('lastName')
+        
+        if first_name is not None:
+            if not first_name.strip():
+                return Response(
+                    {'firstName': 'First name cannot be empty.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            profile.user.first_name = first_name.strip()
+        
+        if last_name is not None:
+            if not last_name.strip():
+                return Response(
+                    {'lastName': 'Last name cannot be empty.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            profile.user.last_name = last_name.strip()
+        
+        # Save user changes
+        if first_name is not None or last_name is not None:
+            profile.user.save()
+        
+        # Update bio if provided
+        bio = request.data.get('bio')
+        if bio is not None:
+            serializer = self.get_serializer(profile, data={'bio': bio}, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Reload profile to get updated data
+        profile.refresh_from_db()
+        profile.user.refresh_from_db()
+        serializer = self.get_serializer(profile)
+        return Response({
+            'message': 'Profile updated successfully',
+            'profile': serializer.data
+        })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def change_password(self, request, pk=None):
+        """Change user password"""
+        from .serializers import PasswordChangeSerializer
+        from django.contrib.auth.hashers import check_password
+        
+        profile = self.get_object()
+        
+        # Check if user is trying to change their own password
+        if profile.user != request.user:
+            return Response(
+                {'error': 'You can only change your own password.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = PasswordChangeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verify current password
+        if not check_password(serializer.validated_data['current_password'], request.user.password):
+            return Response(
+                {'current_password': 'Current password is incorrect.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Set new password
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save()
+        
+        return Response({
+            'message': 'Password changed successfully. Please login again with your new password.'
+        })
+
         # Validate file type
         allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
         if user_image.content_type not in allowed_types:

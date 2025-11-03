@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getUserProfile, getUserReplies, getUserBookmarks, getUserTopics, getUserGamification, uploadUserImage } from '../services/api';
+import { 
+  getUserProfile, getUserReplies, getUserBookmarks, getUserTopics, getUserGamification, 
+  uploadUserImage, toggleFollow, getFollowers, getFollowing, getFollowingTopics,
+  updateProfile as updateProfileAPI, changePassword 
+} from '../services/api';
 import SuccessModal from './SuccessModal';
 import '../styles/UserProfilePage.css';
 
@@ -13,11 +17,17 @@ function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'topics');
   const [isOwnProfile, setIsOwnProfile] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [userReplies, setUserReplies] = useState([]);
   const [userBookmarks, setUserBookmarks] = useState([]);
   const [userTopics, setUserTopics] = useState([]);
   const [saving, setSaving] = useState(false);
+  
+  // Follower/Following state
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [followingTopics, setFollowingTopics] = useState([]);
+  const [followingSubTab, setFollowingSubTab] = useState('topics'); // 'topics' or 'users'
+  const [followLoading, setFollowLoading] = useState(false);
   
   // Image upload state
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -36,21 +46,22 @@ function UserProfilePage() {
   
   // Settings form state
   const [settingsData, setSettingsData] = useState({
-    username: '',
-    email: '',
-    bio: '',
-    location: '',
-    githubUrl: '',
-    linkedinUrl: '',
-    theme: 'Light',
-    language: 'English',
-    emailNotifications: true,
-    emailDigest: true,
-    showOnlineStatus: false,
+    firstName: '',
+    lastName: '',
+    bio: ''
+  });
+  
+  // Password form state
+  const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
-    confirmNewPassword: ''
+    confirmPassword: ''
   });
+  
+  const [profileErrors, setProfileErrors] = useState({});
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     // Update active tab when URL changes
@@ -68,20 +79,9 @@ function UserProfilePage() {
         
         // Initialize settings data with profile data
         setSettingsData({
-          username: data.username || '',
-          email: data.email || '',
-          bio: data.bio || '',
-          location: '',
-          githubUrl: '',
-          linkedinUrl: '',
-          theme: 'Light',
-          language: 'English',
-          emailNotifications: true,
-          emailDigest: true,
-          showOnlineStatus: false,
-          currentPassword: '',
-          newPassword: '',
-          confirmNewPassword: ''
+          firstName: data.first_name || '',
+          lastName: data.last_name || '',
+          bio: data.bio || ''
         });
         
         setLoading(false);
@@ -156,6 +156,43 @@ function UserProfilePage() {
     fetchTopics();
   }, [activeTab, id]);
 
+  // Fetch followers when followers tab is active
+  useEffect(() => {
+    const fetchFollowersData = async () => {
+      if (activeTab === 'followers' && id) {
+        try {
+          const data = await getFollowers(id);
+          setFollowers(data.results || data);
+        } catch (err) {
+          console.error('Error fetching followers:', err);
+        }
+      }
+    };
+
+    fetchFollowersData();
+  }, [activeTab, id]);
+
+  // Fetch following users and topics when following tab is active
+  useEffect(() => {
+    const fetchFollowingData = async () => {
+      if (activeTab === 'following' && id) {
+        try {
+          if (followingSubTab === 'users') {
+            const data = await getFollowing(id);
+            setFollowing(data.results || data);
+          } else if (followingSubTab === 'topics') {
+            const data = await getFollowingTopics(id);
+            setFollowingTopics(data.results || data);
+          }
+        } catch (err) {
+          console.error('Error fetching following data:', err);
+        }
+      }
+    };
+
+    fetchFollowingData();
+  }, [activeTab, followingSubTab, id]);
+
   // Fetch gamification data when badges tab is active
   useEffect(() => {
     const fetchGamificationData = async () => {
@@ -210,35 +247,186 @@ function UserProfilePage() {
     return 'Today';
   };
 
-  const handleFollow = () => {
-    setIsFollowing(!isFollowing);
-    // TODO: API call to follow/unfollow
+  const handleFollow = async () => {
+    if (!currentUserProfile) {
+      alert('Please login to follow users');
+      return;
+    }
+    
+    setFollowLoading(true);
+    try {
+      const result = await toggleFollow(id);
+      setProfile(prev => ({
+        ...prev,
+        is_following: result.is_following,
+        followers_count: result.followers_count,
+        following_count: result.following_count
+      }));
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      alert(error.response?.data?.error || 'Failed to update follow status');
+    } finally {
+      setFollowLoading(false);
+    }
   };
 
   const handleSettingsChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setSettingsData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     }));
+    // Clear error for this field
+    if (profileErrors[name]) {
+      setProfileErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+  
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error for this field
+    if (passwordErrors[name]) {
+      setPasswordErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateProfile = () => {
+    const errors = {};
+    
+    if (!settingsData.firstName || !settingsData.firstName.trim()) {
+      errors.firstName = 'First name is required';
+    }
+    
+    if (!settingsData.lastName || !settingsData.lastName.trim()) {
+      errors.lastName = 'Last name is required';
+    }
+    
+    if (settingsData.bio && settingsData.bio.length > 500) {
+      errors.bio = 'Bio must be 500 characters or less';
+    }
+    
+    setProfileErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  const validatePassword = () => {
+    const errors = {};
+    
+    if (!passwordData.currentPassword) {
+      errors.currentPassword = 'Current password is required';
+    }
+    
+    if (!passwordData.newPassword) {
+      errors.newPassword = 'New password is required';
+    } else if (passwordData.newPassword.length < 8) {
+      errors.newPassword = 'Password must be at least 8 characters long';
+    } else if (!/\d/.test(passwordData.newPassword)) {
+      errors.newPassword = 'Password must contain at least one number';
+    } else if (!/[a-zA-Z]/.test(passwordData.newPassword)) {
+      errors.newPassword = 'Password must contain at least one letter';
+    }
+    
+    if (!passwordData.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    
+    setPasswordErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSaveProfile = async () => {
+    if (!validateProfile()) {
+      return;
+    }
+    
+    setSavingProfile(true);
+    try {
+      const response = await updateProfileAPI(id, {
+        firstName: settingsData.firstName,
+        lastName: settingsData.lastName,
+        bio: settingsData.bio
+      });
+      
+      // Update local profile state with new data
+      const updatedProfileData = {
+        ...profile,
+        first_name: settingsData.firstName,
+        last_name: settingsData.lastName,
+        bio: settingsData.bio
+      };
+      
+      setProfile(updatedProfileData);
+      
+      // Update AuthContext if viewing own profile
+      if (isOwnProfile && currentUserProfile) {
+        updateProfile(updatedProfileData);
+      }
+      
+      setSuccessMessage('Profile updated successfully! 🎉');
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      if (error.response?.data) {
+        setProfileErrors(error.response.data);
+      } else {
+        setProfileErrors({ general: 'Failed to save profile. Please try again.' });
+      }
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+  
+  const handleSavePassword = async () => {
+    if (!validatePassword()) {
+      return;
+    }
+    
+    setSavingPassword(true);
+    try {
+      await changePassword(id, {
+        current_password: passwordData.currentPassword,
+        new_password: passwordData.newPassword,
+        confirm_password: passwordData.confirmPassword
+      });
+      
+      // Clear password form
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      
+      setSuccessMessage('Password changed successfully! Please login again with your new password.');
+      setShowSuccessModal(true);
+      
+      // Optionally redirect to login after a delay
+      setTimeout(() => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }, 2000);
+    } catch (error) {
+      console.error('Error changing password:', error);
+      if (error.response?.data) {
+        setPasswordErrors(error.response.data);
+      } else {
+        setPasswordErrors({ general: 'Failed to change password. Please try again.' });
+      }
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const handleSaveSettings = async () => {
-    setSaving(true);
-    try {
-      // TODO: Implement API call to save settings
-      // For now, just simulate a save with a delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      alert('Settings saved successfully! 🎉\n\nNote: Full backend integration coming soon.');
-      console.log('Settings to save:', settingsData);
-      
-      setSaving(false);
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      alert('Failed to save settings. Please try again.');
-      setSaving(false);
-    }
+    // This is now handled by separate functions
+    handleSaveProfile();
   };
 
   const handleImageClick = () => {
@@ -406,10 +594,11 @@ function UserProfilePage() {
               {!isOwnProfile && (
                 <div className="profile-action-buttons">
                   <button 
-                    className={`follow-btn ${isFollowing ? 'following' : ''}`}
+                    className={`follow-btn ${profile.is_following ? 'following' : ''}`}
                     onClick={handleFollow}
+                    disabled={followLoading}
                   >
-                    {isFollowing ? '✓ Following' : '+ Follow'}
+                    {followLoading ? '...' : (profile.is_following ? '✓ Following' : '+ Follow')}
                   </button>
                   <button className="message-btn">💬 Message</button>
                 </div>
@@ -504,9 +693,21 @@ function UserProfilePage() {
           <div className="stat-number">{profile.likes_received || 0}</div>
           <div className="stat-label">Likes Received</div>
         </div>
-        <div className="stat-box">
+        <div 
+          className="stat-box clickable" 
+          onClick={() => setActiveTab('followers')}
+          style={{ cursor: 'pointer' }}
+        >
           <div className="stat-number">{profile.followers_count || 0}</div>
           <div className="stat-label">Followers</div>
+        </div>
+        <div 
+          className="stat-box clickable" 
+          onClick={() => setActiveTab('following')}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="stat-number">{profile.following_count || 0}</div>
+          <div className="stat-label">Following</div>
         </div>
       </div>
 
@@ -567,14 +768,22 @@ function UserProfilePage() {
           <div className="sidebar-card">
             <h3>Social</h3>
             <div className="social-stats">
-              <a href="#" className="social-stat-link">
-                <span className="social-stat-number">124</span>
+              <div 
+                className="social-stat-link" 
+                onClick={() => setActiveTab('following')}
+                style={{ cursor: 'pointer' }}
+              >
+                <span className="social-stat-number">{profile.following_count || 0}</span>
                 <span className="social-stat-label">Following</span>
-              </a>
-              <a href="#" className="social-stat-link">
-                <span className="social-stat-number">87</span>
+              </div>
+              <div 
+                className="social-stat-link" 
+                onClick={() => setActiveTab('followers')}
+                style={{ cursor: 'pointer' }}
+              >
+                <span className="social-stat-number">{profile.followers_count || 0}</span>
                 <span className="social-stat-label">Followers</span>
-              </a>
+              </div>
             </div>
           </div>
         </div>
@@ -588,6 +797,18 @@ function UserProfilePage() {
               onClick={() => setActiveTab('topics')}
             >
               Topics
+            </button>
+            <button
+              className={`profile-tab ${activeTab === 'following' ? 'active' : ''}`}
+              onClick={() => setActiveTab('following')}
+            >
+              Following
+            </button>
+            <button
+              className={`profile-tab ${activeTab === 'followers' ? 'active' : ''}`}
+              onClick={() => setActiveTab('followers')}
+            >
+              Followers
             </button>
             {isOwnProfile && (
               <>
@@ -637,7 +858,7 @@ function UserProfilePage() {
                     <Link to={`/topic/${topic.id}`} key={topic.id} className="user-topic-card">
                       <h3 className="user-topic-title">{topic.title}</h3>
                       <div className="user-topic-meta">
-                        <span className="topic-category-tag">{topic.category.title}</span>
+                        <span className="topic-category-tag">{topic.category_name}</span>
                         <span className="topic-date">
                           📅 Posted: {getTimeAgo(topic.created_at)}
                         </span>
@@ -650,9 +871,142 @@ function UserProfilePage() {
                   ))
                 ) : (
                   <div className="empty-state">
-                    <div className="empty-icon">�</div>
+                    <div className="empty-icon">📝</div>
                     <h3>No topics yet</h3>
                     <p>This user hasn't created any topics</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Following Tab */}
+            {activeTab === 'following' && (
+              <div className="following-content">
+                {/* Sub-tabs for Following */}
+                <div className="following-sub-tabs">
+                  <button
+                    className={`sub-tab ${followingSubTab === 'topics' ? 'active' : ''}`}
+                    onClick={() => setFollowingSubTab('topics')}
+                  >
+                    📝 Topics Feed
+                  </button>
+                  <button
+                    className={`sub-tab ${followingSubTab === 'users' ? 'active' : ''}`}
+                    onClick={() => setFollowingSubTab('users')}
+                  >
+                    � Users
+                  </button>
+                </div>
+
+                {/* Topics Feed Sub-tab */}
+                {followingSubTab === 'topics' && (
+                  <div className="following-topics-list">
+                    {followingTopics.length > 0 ? (
+                      followingTopics.map((topic) => (
+                        <div key={topic.id} className="user-topic-card compact-horizontal">
+                          {/* Left side - User info */}
+                          <div className="topic-user-section">
+                            <Link to={`/profile/${topic.author.id}`} className="author-avatar">
+                              {topic.author.user_image_url ? (
+                                <img src={topic.author.user_image_url} alt={topic.author.username} />
+                              ) : (
+                                topic.author.username[0].toUpperCase()
+                              )}
+                            </Link>
+                            <div className="user-details">
+                              <Link to={`/profile/${topic.author.id}`} className="author-name">
+                                {topic.author.username}
+                              </Link>
+                              <span className="topic-date">
+                                {getTimeAgo(topic.created_at)}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Right side - Topic data */}
+                          <div className="topic-content-section">
+                            <Link to={`/topic/${topic.id}`} className="topic-link">
+                              <h3 className="user-topic-title">{topic.title}</h3>
+                            </Link>
+                            <div className="topic-meta-row">
+                              <span className="topic-category-tag">{topic.category_name}</span>
+                              <div className="user-topic-stats">
+                                <span className="topic-stat">👁 {topic.views}</span>
+                                <span className="topic-stat">💬 {topic.replies_count}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="empty-state">
+                        <div className="empty-icon">📝</div>
+                        <h3>No topics yet</h3>
+                        <p>Users you follow haven't posted any topics yet</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Users Sub-tab */}
+                {followingSubTab === 'users' && (
+                  <div className="following-users-list">
+                    {following.length > 0 ? (
+                      following.map((user) => (
+                        <div key={user.id} className="user-card">
+                          <Link to={`/profile/${user.id}`} className="user-card-link">
+                            <div className="user-avatar-large">
+                              {user.user_image_url ? (
+                                <img src={user.user_image_url} alt={user.username} />
+                              ) : (
+                                user.username[0].toUpperCase()
+                              )}
+                            </div>
+                            <div className="user-info">
+                              <h4 className="user-name">{user.username}</h4>
+                              <p className="user-points">⭐ {user.points} points</p>
+                            </div>
+                          </Link>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="empty-state">
+                        <div className="empty-icon">👥</div>
+                        <h3>Not following anyone yet</h3>
+                        <p>Start following users to see them here</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Followers Tab */}
+            {activeTab === 'followers' && (
+              <div className="followers-list">
+                {followers.length > 0 ? (
+                  followers.map((user) => (
+                    <div key={user.id} className="user-card">
+                      <Link to={`/profile/${user.id}`} className="user-card-link">
+                        <div className="user-avatar-large">
+                          {user.user_image_url ? (
+                            <img src={user.user_image_url} alt={user.username} />
+                          ) : (
+                            user.username[0].toUpperCase()
+                          )}
+                        </div>
+                        <div className="user-info">
+                          <h4 className="user-name">{user.username}</h4>
+                          <p className="user-points">⭐ {user.points} points</p>
+                        </div>
+                      </Link>
+                    </div>
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <div className="empty-icon">👥</div>
+                    <h3>No followers yet</h3>
+                    <p>When others follow this user, they'll appear here</p>
                   </div>
                 )}
               </div>
@@ -976,27 +1330,57 @@ function UserProfilePage() {
             {/* Settings Tab */}
             {activeTab === 'settings' && isOwnProfile && (
               <div className="settings-panel">
-                {/* Account Info Section */}
+                {/* Profile Info Section */}
                 <div className="settings-section">
-                  <h3 className="settings-heading">Account Info</h3>
+                  <h3 className="settings-heading">Profile Information</h3>
                   <div className="settings-card">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>First Name</label>
+                        <input 
+                          type="text" 
+                          name="firstName"
+                          value={settingsData.firstName}
+                          onChange={handleSettingsChange}
+                          placeholder="Enter first name"
+                        />
+                        {profileErrors.firstName && (
+                          <small className="field-error">{profileErrors.firstName}</small>
+                        )}
+                      </div>
+                      <div className="form-group">
+                        <label>Last Name</label>
+                        <input 
+                          type="text" 
+                          name="lastName"
+                          value={settingsData.lastName}
+                          onChange={handleSettingsChange}
+                          placeholder="Enter last name"
+                        />
+                        {profileErrors.lastName && (
+                          <small className="field-error">{profileErrors.lastName}</small>
+                        )}
+                      </div>
+                    </div>
                     <div className="form-group">
                       <label>Username</label>
                       <input 
                         type="text" 
-                        name="username"
-                        value={settingsData.username}
-                        onChange={handleSettingsChange}
+                        value={profile?.username || ''}
+                        disabled
+                        className="disabled-input"
                       />
+                      <small className="field-hint">Username cannot be changed</small>
                     </div>
                     <div className="form-group">
                       <label>Email</label>
                       <input 
                         type="email" 
-                        name="email"
-                        value={settingsData.email}
-                        onChange={handleSettingsChange}
+                        value={profile?.email || ''}
+                        disabled
+                        className="disabled-input"
                       />
+                      <small className="field-hint">Email cannot be changed</small>
                     </div>
                     <div className="form-group">
                       <label>Bio</label>
@@ -1006,159 +1390,94 @@ function UserProfilePage() {
                         value={settingsData.bio}
                         onChange={handleSettingsChange}
                         placeholder="Tell us about yourself..."
+                        maxLength="500"
                       />
+                      <div className="field-info">
+                        <small className={profileErrors.bio ? "field-error" : "field-hint"}>
+                          {profileErrors.bio || `${settingsData.bio.length}/500 characters`}
+                        </small>
+                      </div>
                     </div>
-                    <div className="form-group">
-                      <label>Location</label>
-                      <input 
-                        type="text" 
-                        name="location"
-                        value={settingsData.location}
-                        onChange={handleSettingsChange}
-                        placeholder="City, Country"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>GitHub URL</label>
-                      <input 
-                        type="url" 
-                        name="githubUrl"
-                        value={settingsData.githubUrl}
-                        onChange={handleSettingsChange}
-                        placeholder="https://github.com/username" 
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>LinkedIn URL</label>
-                      <input 
-                        type="url" 
-                        name="linkedinUrl"
-                        value={settingsData.linkedinUrl}
-                        onChange={handleSettingsChange}
-                        placeholder="https://linkedin.com/in/username" 
-                      />
-                    </div>
+                    {profileErrors.general && (
+                      <div className="error-message">{profileErrors.general}</div>
+                    )}
+                    <button 
+                      className="save-btn primary-btn"
+                      onClick={handleSaveProfile}
+                      disabled={savingProfile}
+                    >
+                      {savingProfile ? '💾 Saving...' : '💾 Save Profile'}
+                    </button>
                   </div>
                 </div>
 
-                {/* Preferences Section */}
+                {/* Password Change Section */}
                 <div className="settings-section">
-                  <h3 className="settings-heading">Preferences</h3>
-                  <div className="settings-card">
-                    <div className="form-group">
-                      <label>Theme</label>
-                      <select 
-                        name="theme"
-                        value={settingsData.theme}
-                        onChange={handleSettingsChange}
-                      >
-                        <option>Light</option>
-                        <option>Dark</option>
-                        <option>Auto</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Language</label>
-                      <select 
-                        name="language"
-                        value={settingsData.language}
-                        onChange={handleSettingsChange}
-                      >
-                        <option>English</option>
-                        <option>Georgian</option>
-                        <option>Russian</option>
-                      </select>
-                    </div>
-                    <div className="form-group checkbox-group">
-                      <label>
-                        <input 
-                          type="checkbox" 
-                          name="emailNotifications"
-                          checked={settingsData.emailNotifications}
-                          onChange={handleSettingsChange}
-                        />
-                        <span>Email notifications for replies</span>
-                      </label>
-                    </div>
-                    <div className="form-group checkbox-group">
-                      <label>
-                        <input 
-                          type="checkbox" 
-                          name="emailDigest"
-                          checked={settingsData.emailDigest}
-                          onChange={handleSettingsChange}
-                        />
-                        <span>Email digest (weekly summary)</span>
-                      </label>
-                    </div>
-                    <div className="form-group checkbox-group">
-                      <label>
-                        <input 
-                          type="checkbox" 
-                          name="showOnlineStatus"
-                          checked={settingsData.showOnlineStatus}
-                          onChange={handleSettingsChange}
-                        />
-                        <span>Show online status</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Security Section */}
-                <div className="settings-section">
-                  <h3 className="settings-heading">Security</h3>
+                  <h3 className="settings-heading">Change Password</h3>
                   <div className="settings-card">
                     <div className="form-group">
                       <label>Current Password</label>
                       <input 
                         type="password" 
                         name="currentPassword"
-                        value={settingsData.currentPassword}
-                        onChange={handleSettingsChange}
+                        value={passwordData.currentPassword}
+                        onChange={handlePasswordChange}
                         placeholder="Enter current password"
                       />
+                      {passwordErrors.currentPassword && (
+                        <small className="field-error">{passwordErrors.currentPassword}</small>
+                      )}
+                      {passwordErrors.current_password && (
+                        <small className="field-error">{passwordErrors.current_password}</small>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>New Password</label>
                       <input 
                         type="password" 
                         name="newPassword"
-                        value={settingsData.newPassword}
-                        onChange={handleSettingsChange}
+                        value={passwordData.newPassword}
+                        onChange={handlePasswordChange}
                         placeholder="Enter new password"
                       />
+                      {passwordErrors.newPassword && (
+                        <small className="field-error">{passwordErrors.newPassword}</small>
+                      )}
+                      {passwordErrors.new_password && (
+                        <small className="field-error">{passwordErrors.new_password}</small>
+                      )}
+                      <small className="field-hint">
+                        At least 8 characters, must contain letters and numbers
+                      </small>
                     </div>
                     <div className="form-group">
                       <label>Confirm New Password</label>
                       <input 
                         type="password" 
-                        name="confirmNewPassword"
-                        value={settingsData.confirmNewPassword}
-                        onChange={handleSettingsChange}
+                        name="confirmPassword"
+                        value={passwordData.confirmPassword}
+                        onChange={handlePasswordChange}
                         placeholder="Confirm new password"
                       />
+                      {passwordErrors.confirmPassword && (
+                        <small className="field-error">{passwordErrors.confirmPassword}</small>
+                      )}
+                      {passwordErrors.confirm_password && (
+                        <small className="field-error">{passwordErrors.confirm_password}</small>
+                      )}
                     </div>
-                    <div className="form-group">
-                      <button className="secondary-btn">View Login Sessions</button>
-                    </div>
-                    <div className="form-group checkbox-group">
-                      <label>
-                        <input type="checkbox" />
-                        <span>Enable Two-Factor Authentication (2FA)</span>
-                      </label>
-                    </div>
+                    {passwordErrors.general && (
+                      <div className="error-message">{passwordErrors.general}</div>
+                    )}
+                    <button 
+                      className="save-btn primary-btn"
+                      onClick={handleSavePassword}
+                      disabled={savingPassword}
+                    >
+                      {savingPassword ? '� Changing...' : '� Change Password'}
+                    </button>
                   </div>
                 </div>
-
-                {/* Save Button */}
-                <button 
-                  className="save-settings-btn"
-                  onClick={handleSaveSettings}
-                  disabled={saving}
-                >
-                  {saving ? '💾 Saving...' : '💾 Save Changes'}
-                </button>
               </div>
             )}
           </div>

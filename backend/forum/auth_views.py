@@ -18,7 +18,8 @@ def register(request):
     """
     try:
         # Get data from request
-        full_name = request.data.get('fullName', '')
+        first_name = request.data.get('firstName', '')
+        last_name = request.data.get('lastName', '')
         username = request.data.get('username')
         email = request.data.get('email')
         password = request.data.get('password')
@@ -61,16 +62,10 @@ def register(request):
         user = User.objects.create_user(
             username=username,
             email=email,
-            password=password
+            password=password,
+            first_name=first_name,
+            last_name=last_name
         )
-
-        # Set first and last name from full name
-        if full_name:
-            name_parts = full_name.split(' ', 1)
-            user.first_name = name_parts[0]
-            if len(name_parts) > 1:
-                user.last_name = name_parts[1]
-            user.save()
 
         # Create user profile if it doesn't exist
         if not hasattr(user, 'profile'):

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from cloudinary.models import CloudinaryField
 
 
 class Category(models.Model):
@@ -115,12 +116,30 @@ class Reply(models.Model):
 class UserProfile(models.Model):
     """Extended user profile"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    user_image = models.ImageField(upload_to='user_images/', null=True, blank=True)
+    user_image = CloudinaryField('image', null=True, blank=True, folder='user_images')
     points = models.IntegerField(default=0)
     bio = models.TextField(blank=True)
     
     def __str__(self):
         return f"{self.user.username}'s profile"
+
+
+class Follow(models.Model):
+    """Represents a follower relationship between users.
+
+    follower -> the user who follows
+    following -> the user being followed
+    """
+    follower = models.ForeignKey(User, on_delete=models.CASCADE, related_name='following_set')
+    following = models.ForeignKey(User, on_delete=models.CASCADE, related_name='followers_set')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('follower', 'following')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.follower.username} -> {self.following.username}"
 
 
 class Bookmark(models.Model):
@@ -181,7 +200,7 @@ class Report(models.Model):
 class TopicImage(models.Model):
     """Images attached to topics"""
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='topic_images/%Y/%m/%d/')
+    image = CloudinaryField('image', folder='topic_images')
     caption = models.CharField(max_length=200, blank=True)
     order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

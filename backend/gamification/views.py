@@ -3,11 +3,24 @@ from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.models import User
-from .models import UserLevel, Badge, UserBadge, UserStreak
+from .models import Level, UserLevel, Badge, UserBadge, UserStreak
 from .serializers import (
-    UserLevelSerializer, BadgeSerializer, UserBadgeSerializer, 
+    LevelSerializer, UserLevelSerializer, BadgeSerializer, UserBadgeSerializer, 
     UserStreakSerializer, UserGamificationSerializer
 )
+
+
+class LevelViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for level definitions"""
+    queryset = Level.objects.filter(is_active=True)
+    serializer_class = LevelSerializer
+    
+    @action(detail=False, methods=['get'])
+    def all_levels(self, request):
+        """Get all active levels"""
+        levels = Level.objects.filter(is_active=True).order_by('level_number')
+        serializer = self.get_serializer(levels, many=True)
+        return Response(serializer.data)
 
 
 class UserLevelViewSet(viewsets.ReadOnlyModelViewSet):
@@ -136,12 +149,6 @@ class UserStreakViewSet(viewsets.ReadOnlyModelViewSet):
 @api_view(['GET'])
 def user_gamification(request, user_id):
     """Get complete gamification data for a user"""
-    if not request.user.is_authenticated:
-        return Response(
-            {'error': 'Authentication required'},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
-    
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
@@ -150,33 +157,46 @@ def user_gamification(request, user_id):
             status=status.HTTP_404_NOT_FOUND
         )
     
+    # Check if user is viewing their own profile
+    is_own_profile = request.user.is_authenticated and request.user.id == user_id
+    
     # Get or create user level
     user_level, created = UserLevel.objects.get_or_create(user=user)
-    
-    # Get all badges for user
-    all_badges = Badge.objects.filter(is_active=True)
-    user_badges = []
-    for badge in all_badges:
-        user_badge, created = UserBadge.objects.get_or_create(
-            user=user,
-            badge=badge
-        )
-        user_badges.append(user_badge)
-    
-    # Get or create streak
-    user_streak, created = UserStreak.objects.get_or_create(user=user)
     
     # Calculate leaderboard position
     higher_ranked = UserLevel.objects.filter(xp__gt=user_level.xp).count()
     leaderboard_position = higher_ranked + 1
     
-    # Serialize data
+    # Serialize data - level and leaderboard are always public
     data = {
-        'level_data': UserLevelSerializer(user_level).data,
-        'badges': UserBadgeSerializer(user_badges, many=True).data,
-        'streak_data': UserStreakSerializer(user_streak).data,
+        'level_data': UserLevelSerializer(user_level, context={'request': request}).data,
         'leaderboard_position': leaderboard_position,
+        'is_own_profile': is_own_profile,
     }
+    
+    if is_own_profile:
+        # For own profile: show all badges with progress
+        all_badges = Badge.objects.filter(is_active=True)
+        user_badges = []
+        for badge in all_badges:
+            user_badge, created = UserBadge.objects.get_or_create(
+                user=user,
+                badge=badge
+            )
+            user_badges.append(user_badge)
+        
+        data['badges'] = UserBadgeSerializer(user_badges, many=True, context={'request': request}).data
+        
+        # Get or create streak
+        user_streak, created = UserStreak.objects.get_or_create(user=user)
+        data['streak_data'] = UserStreakSerializer(user_streak, context={'request': request}).data
+    else:
+        # For other profiles (including unauthenticated): only show earned badges (public showcase)
+        earned_badges = UserBadge.objects.filter(
+            user=user,
+            unlocked=True
+        ).select_related('badge')
+        data['badges'] = UserBadgeSerializer(earned_badges, many=True, context={'request': request}).data
     
     return Response(data)
 

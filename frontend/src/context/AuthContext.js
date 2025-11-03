@@ -17,22 +17,35 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in on mount
+    // Check if user is logged in on mount and refresh from server
     const checkAuth = async () => {
       const token = localStorage.getItem('access_token');
-      const storedUser = localStorage.getItem('user');
-      const storedProfile = localStorage.getItem('profile');
 
-      if (token && storedUser && storedProfile) {
+      if (token) {
         try {
-          setUser(JSON.parse(storedUser));
-          setProfile(JSON.parse(storedProfile));
+          // Fetch fresh data from server
+          const response = await getCurrentUser();
+          setUser(response.user);
+          setProfile(response.profile);
+          localStorage.setItem('user', JSON.stringify(response.user));
+          localStorage.setItem('profile', JSON.stringify(response.profile));
         } catch (error) {
-          console.error('Error parsing stored user data:', error);
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user');
-          localStorage.removeItem('profile');
+          console.error('Error fetching user data:', error);
+          // Fall back to stored data if server request fails
+          const storedUser = localStorage.getItem('user');
+          const storedProfile = localStorage.getItem('profile');
+          if (storedUser && storedProfile) {
+            try {
+              setUser(JSON.parse(storedUser));
+              setProfile(JSON.parse(storedProfile));
+            } catch (parseError) {
+              console.error('Error parsing stored user data:', parseError);
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              localStorage.removeItem('user');
+              localStorage.removeItem('profile');
+            }
+          }
         }
       }
       setLoading(false);
@@ -65,6 +78,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateProfile = (updatedProfile) => {
+    setProfile(updatedProfile);
+    localStorage.setItem('profile', JSON.stringify(updatedProfile));
+  };
+
+  const refreshProfile = async () => {
+    try {
+      const response = await getCurrentUser();
+      setUser(response.user);
+      setProfile(response.profile);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('profile', JSON.stringify(response.profile));
+      return response.profile;
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+      throw error;
+    }
+  };
+
   const value = {
     user,
     profile,
@@ -72,6 +104,8 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     login,
     logout,
+    updateProfile,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

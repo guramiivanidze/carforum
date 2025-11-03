@@ -80,8 +80,8 @@ def register(request):
         refresh = RefreshToken.for_user(user)
 
         # Serialize user data
-        user_serializer = UserSerializer(user)
-        profile_serializer = UserProfileSerializer(user.profile)
+        user_serializer = UserSerializer(user, context={'request': request})
+        profile_serializer = UserProfileSerializer(user.profile, context={'request': request})
 
         return Response({
             'message': 'Registration successful',
@@ -158,8 +158,8 @@ def login(request):
         streak_result = GamificationService.update_daily_streak(authenticated_user)
 
         # Serialize user data
-        user_serializer = UserSerializer(authenticated_user)
-        profile_serializer = UserProfileSerializer(authenticated_user.profile)
+        user_serializer = UserSerializer(authenticated_user, context={'request': request})
+        profile_serializer = UserProfileSerializer(authenticated_user.profile, context={'request': request})
 
         return Response({
             'message': 'Login successful',
@@ -183,13 +183,12 @@ def login(request):
 @permission_classes([AllowAny])
 def logout(request):
     """
-    Logout user (blacklist refresh token)
+    Logout user (client-side token removal)
+    Note: Since token blacklisting is not configured, 
+    the token will remain valid until it expires.
+    The frontend should remove the token from storage.
     """
     try:
-        refresh_token = request.data.get('refresh_token')
-        if refresh_token:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
         return Response(
             {'message': 'Logout successful'},
             status=status.HTTP_200_OK
@@ -207,8 +206,8 @@ def get_current_user(request):
     Get current authenticated user
     """
     try:
-        user_serializer = UserSerializer(request.user)
-        profile_serializer = UserProfileSerializer(request.user.profile)
+        user_serializer = UserSerializer(request.user, context={'request': request})
+        profile_serializer = UserProfileSerializer(request.user.profile, context={'request': request})
         
         return Response({
             'user': user_serializer.data,

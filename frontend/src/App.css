@@ -178,7 +178,7 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
-.user-avatar-wrapper {
+.user-image-wrapper {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -187,9 +187,18 @@ body {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+  overflow: hidden;
+  position: relative;
 }
 
-.user-avatar-icon {
+.user-image-display {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.user-image-icon {
   font-size: 1.4rem;
 }
 
@@ -246,7 +255,7 @@ body {
   gap: 0.75rem;
 }
 
-.dropdown-avatar {
+.dropdown-image {
   font-size: 2rem;
   width: 48px;
   height: 48px;
@@ -256,6 +265,17 @@ body {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.dropdown-image-display {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+  flex-shrink: 0;
 }
 
 .dropdown-username {
@@ -440,7 +460,7 @@ body {
   border-bottom: 1px solid #e2e8f0;
 }
 
-.mobile-user-avatar {
+.mobile-user-image {
   font-size: 2.5rem;
   width: 56px;
   height: 56px;
@@ -772,7 +792,7 @@ body {
   margin-bottom: 0.5rem;
 }
 
-.topic-avatar {
+.topic-image {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -782,6 +802,13 @@ body {
   justify-content: center;
   font-size: 1.3rem;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.topic-image .image-display {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .topic-info {
@@ -1027,12 +1054,12 @@ body {
     background: transparent;
   }
   
-  .mobile-user-menu .user-avatar-wrapper {
+  .mobile-user-menu .user-image-wrapper {
     width: 38px;
     height: 38px;
   }
   
-  .mobile-user-menu .user-avatar-icon {
+  .mobile-user-menu .user-image-icon {
     font-size: 1.4rem;
     display: flex;
     align-items: center;
@@ -1163,7 +1190,7 @@ body {
     gap: 0.75rem;
   }
   
-  .topic-avatar {
+  .topic-image {
     width: 40px;
     height: 40px;
     font-size: 1.2rem;
@@ -1255,7 +1282,7 @@ body {
     padding: 0.875rem;
   }
   
-  .topic-avatar {
+  .topic-image {
     width: 36px;
     height: 36px;
     font-size: 1.1rem;

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getCategories, getCategoryTopics } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { getCategories, getCategoryTopics, searchAll } from '../services/api';
 import '../styles/CategoryPage.css';
 
 function CategoryPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [category, setCategory] = useState(null);
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,6 +17,10 @@ function CategoryPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [popularTags, setPopularTags] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [hasSearched, setHasSearched] = useState(false); // Track if search button was clicked
 
   useEffect(() => {
     const fetchData = async () => {
@@ -78,6 +84,38 @@ function CategoryPage() {
       setCurrentPage(1);
     }
   }, [id, itemsPerPage]);
+
+  // Manual search function triggered by button click
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      setHasSearched(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setHasSearched(true); // Mark that search has been performed
+    try {
+      const results = await searchAll(searchQuery, {
+        filter: 'topics',
+        category: id
+      });
+      setSearchResults(results.topics || []);
+    } catch (err) {
+      console.error('Error searching topics:', err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle Enter key press in search input
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   const getTimeAgo = (dateString) => {
     const now = new Date();
@@ -205,6 +243,44 @@ function CategoryPage() {
 
   const stats = getCategoryStats();
 
+  // Determine which topics to display based on search and active tab
+  let displayedTopics;
+  
+  // Only use search results if search button was actually clicked
+  if (hasSearched) {
+    // Use backend search results
+    displayedTopics = searchResults;
+    
+    // If "My Posts" tab is active, filter search results by user
+    if (activeTab === 'myposts' && user) {
+      displayedTopics = searchResults.filter(topic => topic.author?.id === user.id);
+    }
+  } else {
+    // No search performed - use normal tab filtering
+    displayedTopics = activeTab === 'myposts' && user
+      ? topics.filter(topic => topic.author?.id === user.id)
+      : topics;
+  }
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setIsSearching(false);
+    setHasSearched(false); // Reset search state
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    // Clear search when switching tabs
+    if (hasSearched) {
+      clearSearch();
+    }
+  };
+
   return (
     <div className="category-page">
       {/* Breadcrumb */}
@@ -230,10 +306,17 @@ function CategoryPage() {
       {/* Tabs and Sorting Bar */}
       <div className="category-tabs-bar">
         <div className="category-tabs">
-          <button className="tab active">
+          <button 
+            className={`tab ${activeTab === 'latest' ? 'active' : ''}`}
+            onClick={() => handleTabChange('latest')}
+          >
             🆕 Latest
           </button>
-          <button className="tab" disabled>
+          <button 
+            className={`tab ${activeTab === 'myposts' ? 'active' : ''}`}
+            onClick={() => handleTabChange('myposts')}
+            disabled={!user}
+          >
             📅 My Posts
           </button>
         </div>
@@ -249,22 +332,105 @@ function CategoryPage() {
       </div>
 
       <div className="category-content">
-        {/* Main Content - Topics List */}
-        <div className="topics-list-container">
-          {topics.length === 0 ? (
+        {/* Main Content Area */}
+        <div className="category-main-content">
+          {/* Search Bar for Topics */}
+          <div className="category-search-bar">
+            <div className="search-input-wrapper">
+              <span className="search-icon">🔍</span>
+              <input
+                type="text"
+                className="category-search-input"
+                placeholder="Search topics in this category..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onKeyPress={handleSearchKeyPress}
+              />
+              {searchQuery && (
+                <button className="clear-search-btn" onClick={clearSearch}>
+                  ✕
+                </button>
+              )}
+              <button 
+                className="search-submit-btn" 
+                onClick={handleSearch}
+                disabled={!searchQuery.trim() || isSearching}
+              >
+                {isSearching ? '⏳' : (
+                  <>
+                    🔍
+                    <span className="search-btn-text">Search</span>
+                  </>
+                )}
+              </button>
+            </div>
+            {hasSearched && !isSearching && (
+              <div className="search-results-count">
+                <span>
+                  Found {displayedTopics.length} topic{displayedTopics.length !== 1 ? 's' : ''} for "{searchQuery}"
+                </span>
+                <button className="clear-search-link" onClick={clearSearch}>
+                  Clear Search ✕
+                </button>
+              </div>
+            )}
+            {isSearching && (
+              <div className="search-results-count searching">
+                Searching...
+              </div>
+            )}
+          </div>
+
+          {/* Topics List */}
+          <div className="topics-list-container">
+          {isSearching ? (
             <div className="empty-state">
-              <div className="empty-icon">📭</div>
-              <h3>No topics yet in this category.</h3>
-              <p>Be the first to start a discussion.</p>
-              <button className="create-topic-btn">Create Topic</button>
+              <div className="empty-icon">⏳</div>
+              <h3>Searching topics...</h3>
+              <p>Please wait while we search for "{searchQuery}"</p>
+            </div>
+          ) : displayedTopics.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">
+                {hasSearched ? '🔍' : ''}
+              </div>
+              <h3>
+                {hasSearched 
+                  ? `No topics found matching "${searchQuery}"` 
+                  : activeTab === 'myposts' 
+                    ? 'You haven\'t created any topics in this category yet.' 
+                    : 'No topics yet in this category.'}
+              </h3>
+              <p>
+                {hasSearched 
+                  ? 'Try a different search term or clear the search to see all topics.' 
+                  : activeTab === 'myposts' 
+                    ? 'Start a new discussion to see it here.' 
+                    : 'Be the first to start a discussion.'}
+              </p>
+              {hasSearched ? (
+                <button className="create-topic-btn" onClick={clearSearch}>Clear Search</button>
+              ) : (
+                <button className="create-topic-btn" onClick={() => navigate('/create-topic')}>Create Topic</button>
+              )}
             </div>
           ) : (
             <div className="topics-list">
-              {topics.map((topic) => (
+              {displayedTopics.map((topic) => (
                 <Link to={`/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <div className="topic-row">
                     <div className="topic-user-info">
-                      <div className="user-avatar">{topic.author?.avatar || topic.author?.username?.[0]?.toUpperCase() || "?"}</div>
+                      <div className="user-image">
+                        {topic.author?.user_image_url ? (
+                          <img 
+                            src={topic.author.user_image_url} 
+                            alt={topic.author.username}
+                            className="image-display"
+                          />
+                        ) : (
+                          topic.author?.username?.[0]?.toUpperCase() || "?"
+                        )}
+                      </div>
                       <div className="user-meta">
                         <span className="user-name">{topic.author?.username || "Unknown"}</span>
                         <span className="post-time"> • {getTimeAgo(topic.created_at)}</span>
@@ -277,7 +443,13 @@ function CategoryPage() {
                         {topic.content ? topic.content.substring(0, 100) + '...' : 'Click to read more...'}
                       </p>
                       <div className="topic-tags">
-                        <span className="tag">{category.title}</span>
+                        {topic.tags && topic.tags.length > 0 ? (
+                          topic.tags.map((tag, index) => (
+                            <span key={index} className="tag">{tag}</span>
+                          ))
+                        ) : (
+                          <span className="tag">{category.title}</span>
+                        )}
                       </div>
                     </div>
 
@@ -299,18 +471,22 @@ function CategoryPage() {
           )}
 
           {/* Pagination */}
-          {totalCount > 0 && (
+          {(activeTab === 'latest' ? totalCount : displayedTopics.length) > 0 && (
             <div className="pagination-wrapper">
               <div className="pagination-info">
-                Showing page {currentPage} of {totalPages} ({totalCount} total topics)
+                {activeTab === 'myposts' 
+                  ? `Showing ${displayedTopics.length} of your topics in this category`
+                  : `Showing page ${currentPage} of ${totalPages} (${totalCount} total topics)`
+                }
               </div>
-              {totalPages > 1 && (
+              {totalPages > 1 && activeTab === 'latest' && (
                 <div className="pagination">
                   {renderPaginationButtons()}
                 </div>
               )}
             </div>
           )}
+        </div>
         </div>
 
         {/* Right Sidebar */}

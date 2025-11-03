@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getTopic, createReply, likeReply, deleteReply, bookmarkTopic, votePoll } from '../services/api';
+import { getTopic, getRelatedTopics, createReply, likeTopic, likeReply, deleteReply, bookmarkTopic, votePoll } from '../services/api';
 import ReportModal from './ReportModal';
-import MDEditor from '@uiw/react-md-editor';
-import ReactMarkdown from 'react-markdown';
 import '../styles/TopicDetailPage.css';
 
 function TopicDetailPage() {
@@ -17,6 +15,7 @@ function TopicDetailPage() {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null); // Store parent reply info
   const [submitting, setSubmitting] = useState(false);
+  const [likingTopic, setLikingTopic] = useState(false);
   const [likingReplyId, setLikingReplyId] = useState(null);
   const replyBoxRef = useRef(null); // Ref for reply editor box
   const [reportingReplyId, setReportingReplyId] = useState(null);
@@ -25,6 +24,11 @@ function TopicDetailPage() {
   const [successMessage, setSuccessMessage] = useState({ title: '', message: '' });
   const [votingPoll, setVotingPoll] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null); // For image lightbox
+  const [pendingLikeReplyId, setPendingLikeReplyId] = useState(null); // Store reply ID to like after login
+  const [pendingReportReplyId, setPendingReportReplyId] = useState(null); // Store reply ID to report after login
+  const [flashingReplyId, setFlashingReplyId] = useState(null); // For flash effect
+  const [flashColor, setFlashColor] = useState('blue'); // Color for flash effect (blue for like, red for report)
+  const [relatedTopics, setRelatedTopics] = useState([]); // Related topics with matching tags
 
   useEffect(() => {
     const fetchTopic = async () => {
@@ -43,6 +47,133 @@ function TopicDetailPage() {
 
     fetchTopic();
   }, [id]);
+
+  // Fetch related topics with at least 3 matching tags
+  useEffect(() => {
+    const fetchRelatedTopics = async () => {
+      if (!topic) return;
+
+      try {
+        const related = await getRelatedTopics(topic.id);
+        setRelatedTopics(related);
+      } catch (err) {
+        console.error('Error fetching related topics:', err);
+      }
+    };
+
+    fetchRelatedTopics();
+  }, [topic]);
+
+  // Check for pending like from sessionStorage on mount
+  useEffect(() => {
+    const storedPendingLike = sessionStorage.getItem('pendingLikeReplyId');
+    if (storedPendingLike) {
+      // Convert to number to match reply.id type
+      setPendingLikeReplyId(parseInt(storedPendingLike, 10));
+    }
+    
+    const storedPendingReport = sessionStorage.getItem('pendingReportReplyId');
+    if (storedPendingReport) {
+      // Convert to number to match reply.id type
+      setPendingReportReplyId(parseInt(storedPendingReport, 10));
+    }
+  }, []);
+
+  // Handle pending like after login
+  useEffect(() => {
+    const executePendingLike = async () => {
+      if (user && pendingLikeReplyId && topic) {
+        console.log('Executing pending like for reply:', pendingLikeReplyId);
+        
+        // Store the reply ID before clearing
+        const replyIdToFlash = pendingLikeReplyId;
+        
+        // Clear immediately to prevent re-runs
+        setPendingLikeReplyId(null);
+        sessionStorage.removeItem('pendingLikeReplyId');
+        
+        // User just logged in and there's a pending like
+        await handleLikeReply(replyIdToFlash);
+        
+        // Wait for DOM to update after like
+        setTimeout(() => {
+          // Add flash effect with blue color
+          console.log('Setting flash effect for reply:', replyIdToFlash);
+          console.log('Reply ID type:', typeof replyIdToFlash);
+          setFlashColor('blue');
+          setFlashingReplyId(replyIdToFlash);
+          
+          // Scroll to the reply
+          setTimeout(() => {
+            const replyElement = document.getElementById(`reply-${replyIdToFlash}`);
+            console.log('Reply element:', replyElement);
+            console.log('Current flashingReplyId state:', replyIdToFlash);
+            console.log('Reply classes after flash set:', replyElement?.className);
+            
+            if (replyElement) {
+              replyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 100);
+          
+          // Remove flash after animation completes
+          setTimeout(() => {
+            console.log('Removing flash effect');
+            setFlashingReplyId(null);
+            setFlashColor('blue'); // Reset to blue
+          }, 2000);
+        }, 300);
+      }
+    };
+
+    executePendingLike();
+  }, [user, topic]); // Removed pendingLikeReplyId from dependencies to prevent loop
+
+  // Handle pending report after login
+  useEffect(() => {
+    const executePendingReport = async () => {
+      if (user && pendingReportReplyId && topic) {
+        console.log('Executing pending report for reply:', pendingReportReplyId);
+        
+        // Store the reply ID before clearing
+        const replyIdToFlash = pendingReportReplyId;
+        
+        // Clear immediately to prevent re-runs
+        setPendingReportReplyId(null);
+        sessionStorage.removeItem('pendingReportReplyId');
+        
+        // Wait for DOM to update
+        setTimeout(() => {
+          // Set flash color to red for report
+          setFlashColor('red');
+          setFlashingReplyId(replyIdToFlash);
+          
+          // Scroll to the reply
+          setTimeout(() => {
+            const replyElement = document.getElementById(`reply-${replyIdToFlash}`);
+            
+            if (replyElement) {
+              replyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            // Open report modal after scrolling
+            setTimeout(() => {
+              setReportingReplyId(replyIdToFlash);
+            }, 500);
+          }, 100);
+          
+          // Remove flash after animation completes
+          setTimeout(() => {
+            console.log('Removing flash effect');
+            setFlashingReplyId(null);
+            setFlashColor('blue'); // Reset to blue
+          }, 2000);
+        }, 300);
+      }
+    };
+
+    executePendingReport();
+  }, [user, topic]); // Removed pendingReportReplyId from dependencies to prevent loop
+
 
   const getTimeAgo = (dateString) => {
     const now = new Date();
@@ -207,16 +338,44 @@ function TopicDetailPage() {
     try {
       const response = await bookmarkTopic(id);
       
-      // Update the topic's bookmark status
+      // Update the topic's bookmark status and count
       setTopic(prev => ({
         ...prev,
-        user_has_bookmarked: response.user_has_bookmarked
+        user_has_bookmarked: response.user_has_bookmarked,
+        bookmarks_count: response.user_has_bookmarked 
+          ? (prev.bookmarks_count || 0) + 1 
+          : Math.max((prev.bookmarks_count || 0) - 1, 0)
       }));
     } catch (error) {
       console.error('Error bookmarking topic:', error);
       alert('Failed to bookmark topic. Please try again.');
     } finally {
       setBookmarking(false);
+    }
+  };
+
+  const handleLikeTopic = async () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/topic/${id}` } });
+      return;
+    }
+
+    setLikingTopic(true);
+    try {
+      const response = await likeTopic(id);
+      
+      // Update the topic's like status and count
+      setTopic(prev => ({
+        ...prev,
+        user_has_liked: response.user_has_liked,
+        likes_count: response.likes_count
+      }));
+    } catch (error) {
+      console.error('Error liking topic:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to like topic. Please try again.';
+      alert(errorMsg);
+    } finally {
+      setLikingTopic(false);
     }
   };
 
@@ -243,6 +402,9 @@ function TopicDetailPage() {
 
   const handleReportClick = (replyId) => {
     if (!isAuthenticated) {
+      // Store which reply to report after login in sessionStorage
+      sessionStorage.setItem('pendingReportReplyId', replyId);
+      setPendingReportReplyId(replyId);
       navigate('/login', { state: { from: `/topic/${id}` } });
       return;
     }
@@ -279,11 +441,20 @@ function TopicDetailPage() {
   };
 
   // Component to render a single reply (flat structure)
-  const RenderReply = ({ reply, isNested = false }) => (
-    <div 
-      className={`reply-card ${reply.resolved_report ? 'reported-reply' : ''} ${isNested ? 'nested-reply' : ''}`}
-      style={isNested ? { marginLeft: '3rem' } : {}}
-    >
+  const RenderReply = ({ reply, isNested = false }) => {
+    const isFlashing = flashingReplyId === reply.id;
+    const flashClass = isFlashing ? (flashColor === 'red' ? 'flash-reply-red' : 'flash-reply') : '';
+    
+    if (reply.id === flashingReplyId || isFlashing) {
+      console.log(`Reply ${reply.id} - flashingReplyId: ${flashingReplyId}, match: ${isFlashing}, types:`, typeof reply.id, typeof flashingReplyId);
+    }
+    
+    return (
+      <div 
+        id={`reply-${reply.id}`}
+        className={`reply-card ${reply.resolved_report ? 'reported-reply' : ''} ${isNested ? 'nested-reply' : ''} ${flashClass}`}
+        style={isNested ? { marginLeft: '3rem' } : {}}
+      >
       {reply.resolved_report && (
         <div className="report-warning">
           <span className="report-icon">⚠️</span>
@@ -299,7 +470,17 @@ function TopicDetailPage() {
       <div className="reply-main">
         {/* Reply Header - Author Info (Left Side) */}
         <div className="reply-header">
-          <div className="user-avatar-medium">{reply.author.avatar}</div>
+          <div className="user-image-medium">
+            {reply.author.user_image_url ? (
+              <img 
+                src={reply.author.user_image_url} 
+                alt={reply.author.username}
+                className="image-display"
+              />
+            ) : (
+              reply.author.username?.[0]?.toUpperCase() || '?'
+            )}
+          </div>
           <div className="reply-meta">
             <Link to={`/profile/${reply.author.id}`} className="reply-username">{reply.author.username}</Link>
             <div className="reply-time">{getTimeAgo(reply.created_at)}</div>
@@ -318,26 +499,35 @@ function TopicDetailPage() {
             </div>
           )}
           
-          <ReactMarkdown>{reply.content}</ReactMarkdown>
+          <div dangerouslySetInnerHTML={{ __html: reply.content }} />
           
           {/* Reply Actions */}
           <div className="reply-actions">
-            {user && reply.author.id !== user.id && (
-              <button 
-                className={`reply-action-btn ${reply.user_has_liked ? 'liked' : ''}`}
-                onClick={() => handleLikeReply(reply.id)}
-                disabled={likingReplyId === reply.id}
-              >
-                {reply.user_has_liked ? '❤️' : '👍'} Like {reply.likes_count > 0 && `(${reply.likes_count})`}
-              </button>
-            )}
+            <button 
+              className={`reply-action-btn ${reply.user_has_liked ? 'liked' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                if (!user) {
+                  // Store which reply to like after login in sessionStorage
+                  sessionStorage.setItem('pendingLikeReplyId', reply.id);
+                  setPendingLikeReplyId(reply.id);
+                  navigate('/login', { state: { from: `/topic/${id}` } });
+                  return;
+                }
+                handleLikeReply(reply.id);
+              }}
+              disabled={user && (likingReplyId === reply.id || reply.author.id === user.id)}
+              style={{ opacity: user && reply.author.id === user.id ? 0.5 : 1 }}
+            >
+              {reply.user_has_liked ? '❤️' : '👍'} Like {reply.likes_count > 0 && `(${reply.likes_count})`}
+            </button>
             <button 
               className="reply-action-btn"
               onClick={() => handleReplyToReply(reply)}
             >
               💬 Reply {reply.replies_count > 0 && `(${reply.replies_count})`}
             </button>
-            {user && reply.author.id !== user.id && (
+            {(!user || reply.author.id !== user.id) && (
               <button 
                 className="reply-action-btn"
                 onClick={() => handleReportClick(reply.id)}
@@ -357,7 +547,8 @@ function TopicDetailPage() {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   if (loading) {
     return <div className="topic-detail-loading">Loading topic...</div>;
@@ -396,7 +587,7 @@ function TopicDetailPage() {
 
             {/* Content Only */}
             <div className="post-content-main">
-              <ReactMarkdown>{topic.content}</ReactMarkdown>
+              <div dangerouslySetInnerHTML={{ __html: topic.content }} />
             </div>
 
             {/* Topic Images */}
@@ -492,15 +683,25 @@ function TopicDetailPage() {
                   ✏️ Edit
                 </Link>
               )}
-              <button className="action-btn">👍 Like</button>
+              {(!user || topic.author.id !== user.id) && (
+                <button 
+                  className={`action-btn ${topic.user_has_liked ? 'active' : ''}`}
+                  onClick={handleLikeTopic}
+                  disabled={likingTopic}
+                >
+                  {topic.user_has_liked ? '❤️' : '👍'} Like {topic.likes_count > 0 && `(${topic.likes_count})`}
+                </button>
+              )}
               <button className="action-btn" onClick={handleReplyClick}>💬 Reply</button>
-              <button 
-                className={`action-btn ${topic.user_has_bookmarked ? 'active' : ''}`}
-                onClick={handleBookmark}
-                disabled={bookmarking}
-              >
-                {topic.user_has_bookmarked ? '✓ Bookmarked' : '🔖 Bookmark'}
-              </button>
+              {(!user || topic.author.id !== user.id) && (
+                <button 
+                  className={`action-btn ${topic.user_has_bookmarked ? 'active' : ''}`}
+                  onClick={handleBookmark}
+                  disabled={bookmarking}
+                >
+                  {topic.user_has_bookmarked ? '✓ Bookmarked' : '🔖 Bookmark'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -538,8 +739,8 @@ function TopicDetailPage() {
           {showReplyBox && (
             <div className="reply-editor-box" ref={replyBoxRef}>
               <div className="editor-header">
-                <div className="user-avatar-small">
-                  {user?.avatar || '👤'}
+                <div className="user-image-small">
+                  {user?.username?.[0]?.toUpperCase() || '?'}
                 </div>
                 <div>
                   {replyingTo ? (
@@ -560,11 +761,12 @@ function TopicDetailPage() {
                 </div>
               </div>
               <form onSubmit={handleReplySubmit}>
-                <MDEditor
+                <textarea
                   value={replyText}
-                  onChange={setReplyText}
-                  preview="live"
-                  height={300}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Write your reply..."
+                  rows={10}
+                  style={{ width: '100%', padding: '10px', fontSize: '14px' }}
                 />
                 <div className="editor-actions">
                   <button 
@@ -607,7 +809,17 @@ function TopicDetailPage() {
           <div className="sidebar-card author-info-card">
             <h3>👤 Topic Author</h3>
             <div className="author-info-content">
-              <div className="user-avatar-large">{topic.author.avatar}</div>
+              <div className="user-image-large">
+                {topic.author.user_image_url ? (
+                  <img 
+                    src={topic.author.user_image_url} 
+                    alt={topic.author.username}
+                    className="image-display"
+                  />
+                ) : (
+                  topic.author.username?.[0]?.toUpperCase() || '?'
+                )}
+              </div>
               <Link to={`/profile/${topic.author.id}`} className="author-username">{topic.author.username}</Link>
               <div className="user-role-tag">Member</div>
               <div className="author-stats">
@@ -646,46 +858,50 @@ function TopicDetailPage() {
               </div>
               <div className="info-row">
                 <span className="info-label">Followers:</span>
-                <span className="info-value">14</span>
-              </div>
-              <div className="info-row">
-                <span className="info-label">Tags:</span>
-                <div className="tag-list">
-                  <span className="tag-small">{topic.category.title}</span>
-                </div>
+                <span className="info-value">{topic.bookmarks_count || 0}</span>
               </div>
             </div>
-            <button 
-              className={`follow-topic-btn ${topic.user_has_bookmarked ? 'bookmarked' : ''}`}
-              onClick={handleBookmark}
-              disabled={bookmarking}
-            >
-              {bookmarking ? '⏳ Loading...' : topic.user_has_bookmarked ? '✓ Bookmarked' : '🔖 Bookmark topic'}
-            </button>
+            {(!user || topic.author.id !== user.id) && (
+              <button 
+                className={`follow-topic-btn ${topic.user_has_bookmarked ? 'bookmarked' : ''}`}
+                onClick={handleBookmark}
+                disabled={bookmarking}
+              >
+                {bookmarking ? '⏳ Loading...' : topic.user_has_bookmarked ? '✓ Bookmarked' : '🔖 Bookmark topic'}
+              </button>
+            )}
           </div>
 
           {/* Active Users Card */}
           <div className="sidebar-card active-users-card">
             <h3>👥 Active Users</h3>
             <div className="active-users-list">
-              <div className="active-user-avatars">
-                <span className="avatar-tiny">👤</span>
-                <span className="avatar-tiny">👨</span>
-                <span className="avatar-tiny">👩</span>
+              <div className="active-user-images">
+                <span className="image-tiny">👤</span>
+                <span className="image-tiny">👨</span>
+                <span className="image-tiny">👩</span>
               </div>
               <p className="active-users-text">3 people are viewing this topic</p>
             </div>
           </div>
 
           {/* Related Topics Card */}
-          <div className="sidebar-card related-topics-card">
-            <h3>📚 Related Topics</h3>
-            <div className="related-topics-list">
-              <a href="#" className="related-topic-link">Deploy FastAPI on VPS?</a>
-              <a href="#" className="related-topic-link">Nginx vs Apache for Python app</a>
-              <a href="#" className="related-topic-link">Best Linux for backend dev</a>
+          {relatedTopics.length > 0 && (
+            <div className="sidebar-card related-topics-card">
+              <h3>📚 Related Topics</h3>
+              <div className="related-topics-list">
+                {relatedTopics.map(relatedTopic => (
+                  <Link 
+                    key={relatedTopic.id}
+                    to={`/topic/${relatedTopic.id}`} 
+                    className="related-topic-link"
+                  >
+                    {relatedTopic.title}
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </aside>
       </div>
 

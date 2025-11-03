@@ -38,10 +38,23 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Topic)
 class TopicAdmin(admin.ModelAdmin):
-    list_display = ['title', 'author', 'category', 'replies_count', 'views', 'created_at', 'updated_at']
+    list_display = ['title', 'author', 'category', 'replies_count', 'likes_count', 'views', 'created_at', 'updated_at']
     list_filter = ['category', 'created_at']
     search_fields = ['title', 'content', 'author__username']
-    readonly_fields = ['views', 'created_at', 'updated_at']
+    readonly_fields = ['views', 'created_at', 'updated_at', 'likes_list']
+    filter_horizontal = ['likes']
+    
+    def likes_count(self, obj):
+        return obj.likes.count()
+    likes_count.short_description = 'Likes'
+    
+    def likes_list(self, obj):
+        """Show all users who liked this topic"""
+        users = obj.likes.all()
+        if users:
+            return ', '.join([user.username for user in users])
+        return 'No likes yet'
+    likes_list.short_description = 'Users who liked'
 
 
 @admin.register(Reply)
@@ -54,7 +67,7 @@ class ReplyAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'avatar', 'points']
+    list_display = ['user', 'points', 'bio']
     search_fields = ['user__username', 'user__email']
 
 

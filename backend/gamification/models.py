@@ -2,12 +2,30 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
+class Level(models.Model):
+    """Level definitions with XP thresholds"""
+    level_number = models.IntegerField(unique=True)
+    name = models.CharField(max_length=50)
+    xp_required = models.IntegerField(help_text='Total XP required to reach this level')
+    icon = models.CharField(max_length=10, default='⭐', blank=True)
+    image = models.ImageField(upload_to='level_images/', null=True, blank=True, help_text='Custom level image (optional, falls back to icon)')
+    color = models.CharField(max_length=7, default='#3b82f6', help_text='Hex color code')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['level_number']
+    
+    def __str__(self):
+        return f"Level {self.level_number}: {self.name} ({self.xp_required} XP)"
+
+
 class UserLevel(models.Model):
     """User levels and XP tracking"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='level')
     xp = models.IntegerField(default=0)
     level = models.IntegerField(default=1)
-    level_name = models.CharField(max_length=50, default='Newbie')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -18,20 +36,56 @@ class UserLevel(models.Model):
         return f"{self.user.username} - Level {self.level} ({self.level_name})"
     
     @property
+    def level_name(self):
+        """Get level name from Level model"""
+        level_obj = self.current_level_obj
+        return level_obj.name if level_obj else 'Newbie'
+    
+    @property
+    def current_level_obj(self):
+        """Get the Level object for current level"""
+        return Level.objects.filter(level_number=self.level, is_active=True).first()
+    
+    @property
+    def next_level_obj(self):
+        """Get the Level object for next level"""
+        return Level.objects.filter(level_number=self.level + 1, is_active=True).first()
+    
+    @property
     def current_xp(self):
         """Get XP progress in current level"""
-        current_level_min_xp = (self.level - 1) * 500
-        return self.xp - current_level_min_xp
+        current_level = self.current_level_obj
+        if current_level:
+            return self.xp - current_level.xp_required
+        return self.xp
     
     @property
     def xp_to_next_level(self):
         """Calculate XP needed for next level"""
-        return 500  # Each level requires 500 XP
+        next_level = self.next_level_obj
+        if next_level:
+            return next_level.xp_required - self.xp
+        return 0  # Already at max level
     
     @property
     def xp_progress_percentage(self):
         """Calculate progress percentage to next level"""
-        return (self.current_xp / self.xp_to_next_level) * 100 if self.xp_to_next_level > 0 else 0
+        current_level = self.current_level_obj
+        next_level = self.next_level_obj
+        
+        if not next_level:
+            return 100  # Max level reached
+        
+        if current_level:
+            level_xp_range = next_level.xp_required - current_level.xp_required
+            current_progress = self.xp - current_level.xp_required
+        else:
+            level_xp_range = next_level.xp_required
+            current_progress = self.xp
+        
+        if level_xp_range > 0:
+            return (current_progress / level_xp_range) * 100
+        return 0
     
     @property
     def total_xp(self):
@@ -45,31 +99,17 @@ class UserLevel(models.Model):
         self.save()
     
     def check_level_up(self):
-        """Check if user should level up"""
-        while self.xp >= (self.level * 500):
-            self.level += 1
-            self.update_level_name()
-    
-    def update_level_name(self):
-        """Update level name based on current level"""
-        level_names = {
-            1: 'Newbie',
-            2: 'Beginner',
-            3: 'Member',
-            4: 'Active Member',
-            5: 'Contributor',
-            6: 'Regular',
-            7: 'Expert',
-            8: 'Veteran',
-            9: 'Master',
-            10: 'Legend'
-        }
-        if self.level <= 10:
-            self.level_name = level_names.get(self.level, 'Member')
-        elif self.level <= 20:
-            self.level_name = 'Elite'
-        else:
-            self.level_name = 'Legendary'
+        """Check if user should level up based on Level model"""
+        # Get all levels the user qualifies for
+        qualified_levels = Level.objects.filter(
+            xp_required__lte=self.xp,
+            is_active=True
+        ).order_by('-level_number')
+        
+        if qualified_levels.exists():
+            highest_level = qualified_levels.first()
+            if highest_level.level_number > self.level:
+                self.level = highest_level.level_number
 
 
 class Badge(models.Model):

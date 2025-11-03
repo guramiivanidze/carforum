@@ -108,6 +108,11 @@ export const getTopic = async (id) => {
   return response.data;
 };
 
+export const getRelatedTopics = async (id) => {
+  const response = await api.get(`/topics/${id}/related/`);
+  return response.data;
+};
+
 export const getTopMembers = async () => {
   const response = await api.get('/profiles/top_members/');
   return response.data;
@@ -115,6 +120,19 @@ export const getTopMembers = async () => {
 
 export const getUserProfile = async (id) => {
   const response = await api.get(`/profiles/${id}/`);
+  return response.data;
+};
+
+export const updateUserProfile = async (id, profileData) => {
+  const response = await api.put(`/profiles/${id}/`, profileData);
+  return response.data;
+};
+
+export const uploadUserImage = async (userId, imageFile) => {
+  const formData = new FormData();
+  formData.append('user_image', imageFile);
+  
+  const response = await api.post(`/profiles/${userId}/upload_image/`, formData);
   return response.data;
 };
 
@@ -135,6 +153,11 @@ export const updateTopic = async (topicId, topicData) => {
 
 export const createReply = async (topicId, replyData) => {
   const response = await api.post(`/topics/${topicId}/replies/`, replyData);
+  return response.data;
+};
+
+export const likeTopic = async (topicId) => {
+  const response = await api.post(`/topics/${topicId}/like/`);
   return response.data;
 };
 

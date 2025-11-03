@@ -7,12 +7,23 @@ from .models import (
 
 
 class UserSerializer(serializers.ModelSerializer):
-    avatar = serializers.CharField(source='profile.avatar', read_only=True)
+
     points = serializers.IntegerField(source='profile.points', read_only=True)
+    user_image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'avatar', 'points', 'date_joined']
+        fields = ['id', 'username', 'email', 'points', 'date_joined', 'user_image_url']
+    
+    def get_user_image_url(self, obj):
+        """Get the full URL for the user image"""
+        if hasattr(obj, 'profile') and obj.profile.user_image:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.profile.user_image.url)
+            return obj.profile.user_image.url
+        return None
+    
 
 
 class CategoryRuleSerializer(serializers.ModelSerializer):
@@ -39,7 +50,7 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class ReplySerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
+    author = serializers.SerializerMethodField()
     likes_count = serializers.IntegerField(read_only=True)
     user_has_liked = serializers.SerializerMethodField()
     resolved_report = serializers.SerializerMethodField()
@@ -53,19 +64,16 @@ class ReplySerializer(serializers.ModelSerializer):
                   'child_replies', 'replies_count', 'is_hidden', 'resolved_report', 'created_at', 'updated_at']
         read_only_fields = ['author', 'topic', 'likes_count', 'is_hidden']
     
+    def get_author(self, obj):
+        """Serialize author with context"""
+        return UserSerializer(obj.author, context=self.context).data
+    
     def get_parent_author(self, obj):
         """Get the author info of the parent reply"""
         if obj.parent:
-            # Safely get avatar from profile, fallback to default if no profile exists
-            try:
-                avatar = obj.parent.author.profile.avatar
-            except UserProfile.DoesNotExist:
-                avatar = '👤'  # Default avatar
-            
             return {
                 'id': obj.parent.author.id,
-                'username': obj.parent.author.username,
-                'avatar': avatar
+                'username': obj.parent.author.username
             }
         return None
     
@@ -175,7 +183,7 @@ class PollSerializer(serializers.ModelSerializer):
 
 
 class TopicSerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
+    author = serializers.SerializerMethodField()
     category_name = serializers.CharField(source='category.title', read_only=True)
     replies_count = serializers.ReadOnlyField()
     images = TopicImageSerializer(many=True, read_only=True)
@@ -195,17 +203,24 @@ class TopicSerializer(serializers.ModelSerializer):
                   'content', 'tags', 'tag_ids', 'replies_count', 'views', 'images', 'poll', 'created_at', 'updated_at']
         read_only_fields = ['author', 'views']
     
+    def get_author(self, obj):
+        """Serialize author with context"""
+        return UserSerializer(obj.author, context=self.context).data
+    
     def get_tags(self, obj):
         """Return tag names as a list of strings for backward compatibility"""
         return [tag.name for tag in obj.tags.all()]
 
 
 class TopicDetailSerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
+    author = serializers.SerializerMethodField()
     category = CategorySerializer(read_only=True)
     replies = serializers.SerializerMethodField()
     replies_count = serializers.ReadOnlyField()
+    likes_count = serializers.ReadOnlyField()
+    user_has_liked = serializers.SerializerMethodField()
     user_has_bookmarked = serializers.SerializerMethodField()
+    bookmarks_count = serializers.SerializerMethodField()
     images = TopicImageSerializer(many=True, read_only=True)
     poll = PollSerializer(read_only=True)
     tags = serializers.SerializerMethodField()
@@ -213,17 +228,31 @@ class TopicDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topic
         fields = ['id', 'title', 'author', 'category', 'content', 'tags',
-                  'replies', 'replies_count', 'views', 'images', 'poll', 'created_at', 'updated_at', 'user_has_bookmarked']
+                  'replies', 'replies_count', 'likes_count', 'user_has_liked', 'views', 'images', 'poll', 'created_at', 'updated_at', 'user_has_bookmarked', 'bookmarks_count']
+    
+    def get_author(self, obj):
+        """Serialize author with context"""
+        return UserSerializer(obj.author, context=self.context).data
     
     def get_tags(self, obj):
         """Return tag names as a list of strings for backward compatibility"""
         return [tag.name for tag in obj.tags.all()]
+    
+    def get_user_has_liked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(id=request.user.id).exists()
+        return False
     
     def get_user_has_bookmarked(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return Bookmark.objects.filter(user=request.user, topic=obj).exists()
         return False
+    
+    def get_bookmarks_count(self, obj):
+        """Return the number of users who bookmarked this topic"""
+        return Bookmark.objects.filter(topic=obj).count()
     
     def get_replies(self, obj):
         # Only get top-level replies (parent=None), nested replies will be included via child_replies
@@ -247,10 +276,65 @@ class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
     date_joined = serializers.DateTimeField(source='user.date_joined', read_only=True)
+    user_image_url = serializers.SerializerMethodField()
+    
+    # Stats fields
+    topics_count = serializers.SerializerMethodField()
+    replies_count = serializers.SerializerMethodField()
+    likes_given = serializers.SerializerMethodField()
+    likes_received = serializers.SerializerMethodField()
+    followers_count = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
-        fields = ['id', 'username', 'email', 'avatar', 'points', 'bio', 'date_joined']
+        fields = ['id', 'username', 'email', 'points', 'bio', 'date_joined', 'user_image', 'user_image_url',
+                  'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count']
+        read_only_fields = ['id', 'username', 'email', 'points', 'date_joined', 'user_image_url',
+                            'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count']
+    
+    def get_user_image_url(self, obj):
+        """Get the full URL for the user image"""
+        if obj.user_image:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.user_image.url)
+            return obj.user_image.url
+        return None
+    
+    def get_topics_count(self, obj):
+        """Get total number of topics created by user"""
+        return obj.user.topics.count()
+    
+    def get_replies_count(self, obj):
+        """Get total number of replies created by user"""
+        return obj.user.replies.filter(is_hidden=False).count()
+    
+    def get_likes_given(self, obj):
+        """Get total number of likes given by user (topics + replies)"""
+        topics_likes = obj.user.liked_topics.count()
+        replies_likes = obj.user.liked_replies.count()
+        return topics_likes + replies_likes
+    
+    def get_likes_received(self, obj):
+        """Get total number of likes received on user's topics and replies"""
+        from django.db.models import Count
+        
+        # Count likes on user's topics
+        topics_likes = Topic.objects.filter(author=obj.user).aggregate(
+            total_likes=Count('likes')
+        )['total_likes'] or 0
+        
+        # Count likes on user's replies
+        replies_likes = Reply.objects.filter(author=obj.user).aggregate(
+            total_likes=Count('likes')
+        )['total_likes'] or 0
+        
+        return topics_likes + replies_likes
+    
+    def get_followers_count(self, obj):
+        """Get number of followers - placeholder for now"""
+        # TODO: Implement followers functionality later
+        return 0
 
 
 class ReportReasonSerializer(serializers.ModelSerializer):

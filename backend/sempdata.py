@@ -146,7 +146,7 @@ class Command(BaseCommand):
 
                 # პროფილის შექმნა ან განახლება
                 profile, _ = UserProfile.objects.get_or_create(user=obj)
-                profile.avatar = '👤'
+                
                 profile.points = profile.points or 0
                 profile.save()
 

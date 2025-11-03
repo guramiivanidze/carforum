@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth.models import User
 from django.db.models import Q, Count
 from .models import (
@@ -37,10 +38,10 @@ class CategoryViewSet(viewsets.ModelViewSet):
         page = paginator.paginate_queryset(topics, request)
         
         if page is not None:
-            serializer = TopicSerializer(page, many=True)
+            serializer = TopicSerializer(page, many=True, context={'request': request})
             return paginator.get_paginated_response(serializer.data)
         
-        serializer = TopicSerializer(topics, many=True)
+        serializer = TopicSerializer(topics, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -311,6 +312,50 @@ class TopicViewSet(viewsets.ModelViewSet):
         topic.save()
         return Response({'views': topic.views})
     
+    @action(detail=True, methods=['get'])
+    def related(self, request, pk=None):
+        """Get related topics with at least 3 matching tags"""
+        topic = self.get_object()
+        
+        # Get topic tags
+        topic_tags = list(topic.tags.values_list('name', flat=True))
+        
+        if not topic_tags or len(topic_tags) < 3:
+            return Response([])
+        
+        # Get all topics from the same category (excluding current topic)
+        from django.db.models import Count, Q
+        
+        # Build query to find topics with matching tags
+        related_topics = Topic.objects.filter(
+            category=topic.category
+        ).exclude(
+            id=topic.id
+        ).prefetch_related('tags', 'author')
+        
+        # Filter and annotate with matching tags count
+        topics_with_matches = []
+        for t in related_topics:
+            t_tags = list(t.tags.values_list('name', flat=True))
+            matching_tags = set(topic_tags) & set(t_tags)
+            matches_count = len(matching_tags)
+            
+            if matches_count >= 3:
+                topics_with_matches.append({
+                    'topic': t,
+                    'matches': matches_count
+                })
+        
+        # Sort by number of matches (descending)
+        topics_with_matches.sort(key=lambda x: x['matches'], reverse=True)
+        
+        # Get top 5 topics
+        top_topics = [item['topic'] for item in topics_with_matches[:5]]
+        
+        # Serialize the topics
+        serializer = TopicSerializer(top_topics, many=True, context={'request': request})
+        return Response(serializer.data)
+    
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def replies(self, request, pk=None):
         """Create a reply for this topic"""
@@ -323,10 +368,58 @@ class TopicViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def like(self, request, pk=None):
+        """Like or unlike a topic"""
+        topic = self.get_object()
+        user = request.user
+        
+        # Prevent users from liking their own topics
+        if topic.author == user:
+            return Response(
+                {'error': 'You cannot like your own topic'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if user in topic.likes.all():
+            # Unlike
+            topic.likes.remove(user)
+            return Response({
+                'status': 'unliked',
+                'user_has_liked': False,
+                'likes_count': topic.likes.count()
+            })
+        else:
+            # Like
+            topic.likes.add(user)
+            
+            # Check for topic likes badges for the author
+            from gamification.services import GamificationService
+            badges_unlocked = GamificationService.check_topic_likes_badges(topic.author)
+            
+            response_data = {
+                'status': 'liked',
+                'user_has_liked': True,
+                'likes_count': topic.likes.count()
+            }
+            
+            # Include badge info if any were unlocked
+            if badges_unlocked:
+                response_data['badges_unlocked'] = badges_unlocked
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def bookmark(self, request, pk=None):
         """Bookmark or unbookmark a topic"""
         topic = self.get_object()
         user = request.user
+        
+        # Prevent users from bookmarking their own topics
+        if topic.author == user:
+            return Response(
+                {'error': 'You cannot bookmark your own topic'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         bookmark = Bookmark.objects.filter(user=user, topic=topic).first()
         
@@ -432,10 +525,11 @@ class ReplyViewSet(viewsets.ModelViewSet):
         )
 
 
-class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
+class UserProfileViewSet(viewsets.ModelViewSet):
     """API endpoint for user profiles - lookup by user ID"""
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
+    http_method_names = ['get', 'post', 'put', 'patch', 'head', 'options']  # Allow POST for custom actions
     
     def get_object(self):
         """Get profile by user ID instead of profile ID"""
@@ -461,9 +555,17 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=True, methods=['get'])
     def replies(self, request, pk=None):
-        """Get user's replies with report information"""
+        """Get user's replies with report information - only for own profile"""
         from .serializers import ReplySerializer
         profile = self.get_object()
+        
+        # Check if user is viewing their own profile
+        if not request.user.is_authenticated or profile.user != request.user:
+            return Response(
+                {'error': 'You can only view your own replies'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         replies = Reply.objects.filter(author=profile.user).select_related('topic', 'author').order_by('-created_at')
         
         # Add context to show resolved reports if viewing own profile
@@ -475,17 +577,73 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
         """Get user's topics"""
         profile = self.get_object()
         topics = Topic.objects.filter(author=profile.user).select_related('author', 'category').order_by('-created_at')
-        serializer = TopicSerializer(topics, many=True)
+        serializer = TopicSerializer(topics, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=True, methods=['get'])
     def bookmarks(self, request, pk=None):
-        """Get user's bookmarked topics"""
+        """Get user's bookmarked topics - only for own profile"""
         profile = self.get_object()
+        
+        # Check if user is viewing their own profile
+        if not request.user.is_authenticated or profile.user != request.user:
+            return Response(
+                {'error': 'You can only view your own bookmarks'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         bookmarks = Bookmark.objects.filter(user=profile.user).select_related('topic', 'topic__author', 'topic__category').order_by('-created_at')
         serializer = BookmarkSerializer(bookmarks, many=True)
         return Response(serializer.data)
-
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated], parser_classes=[MultiPartParser, FormParser])
+    def upload_image(self, request, pk=None):
+        """Upload user profile image"""
+        profile = self.get_object()
+        
+        # Check if user is trying to upload to their own profile
+        if profile.user != request.user:
+            return Response(
+                {'error': 'You can only upload images to your own profile.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get the uploaded file
+        user_image = request.FILES.get('user_image')
+        if not user_image:
+            return Response(
+                {'error': 'No image file provided.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        if user_image.content_type not in allowed_types:
+            return Response(
+                {'error': 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate file size (max 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB in bytes
+        if user_image.size > max_size:
+            return Response(
+                {'error': 'File size too large. Maximum size is 5MB.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Delete old image if exists
+        if profile.user_image:
+            profile.user_image.delete(save=False)
+        
+        # Save new image
+        profile.user_image = user_image
+        profile.save()
+        
+        # Return updated profile
+        serializer = self.get_serializer(profile, context={'request': request})
+        return Response(serializer.data)
+    
 
 class ReportReasonViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for report reasons"""
@@ -507,6 +665,13 @@ class ReportViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save(reporter=self.request.user)
+        
+        # Check for reports badge
+        from gamification.services import GamificationService
+        badge_result = GamificationService.check_reports_badge(self.request.user)
+        
+        # Store badge info in the request for later use in create()
+        self.request.badge_result = badge_result
     
     def create(self, request, *args, **kwargs):
         # Get the reply being reported
@@ -532,7 +697,16 @@ class ReportViewSet(viewsets.ModelViewSet):
                 {'error': 'You have already reported this reply.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        return super().create(request, *args, **kwargs)
+        
+        # Create the report
+        response = super().create(request, *args, **kwargs)
+        
+        # Add badge info to response if available
+        if hasattr(request, 'badge_result') and request.badge_result['badge_unlocked']:
+            response.data['badge_unlocked'] = request.badge_result['badge_unlocked']
+        
+        return response
+
 
 
 @api_view(['GET'])
@@ -612,7 +786,7 @@ def search(request):
             ).order_by('-total_replies', '-views')
         
         topics = topics_query[:20]
-        results['topics'] = TopicSerializer(topics, many=True).data
+        results['topics'] = TopicSerializer(topics, many=True, context={'request': request}).data
     
     # Search Users
     if filter_type in ['all', 'users']:
@@ -627,7 +801,6 @@ def search(request):
             'id': user.id,
             'username': user.username,
             'email': user.email if request.user.is_staff else None,
-            'avatar': user.profile.avatar if hasattr(user, 'profile') else '👤',
             'points': user.profile.points if hasattr(user, 'profile') else 0,
             'bio': user.profile.bio if hasattr(user, 'profile') else '',
         } for user in users]

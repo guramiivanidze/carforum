@@ -29,14 +29,15 @@
   gap: 2rem;
 }
 
-.profile-avatar-section {
+.profile-image-section {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
+  position: relative;
 }
 
-.user-avatar-xlarge {
+.user-image-xlarge {
   width: 120px;
   height: 120px;
   border-radius: 50%;
@@ -46,21 +47,97 @@
   justify-content: center;
   font-size: 4rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.user-image-xlarge .image-display {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.profile-image-section:hover .user-image-xlarge {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.change-photo-btn {
+  background: #2563eb;
+  border: none;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.change-photo-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.change-photo-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.uploading-spinner {
+  font-size: 3rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .change-photo-link {
-  background: transparent;
+  background: #2563eb;
   border: none;
-  color: #2563eb;
+  color: white;
   font-size: 0.875rem;
+  font-weight: 600;
   cursor: pointer;
-  text-decoration: underline;
-  padding: 0.25rem;
-  transition: color 0.2s;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
-.change-photo-link:hover {
-  color: #1d4ed8;
+.change-photo-link:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
+}
+
+.change-photo-link:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.change-photo-link:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
 }
 
 .profile-info-section {
@@ -160,6 +237,37 @@
   border-radius: 12px;
   font-size: 0.875rem;
   font-weight: 600;
+}
+
+.badge-tag.level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.badge-tag.level-badge .level-image {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.badge-tag.earned-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  cursor: help;
+  transition: transform 0.2s;
+}
+
+.badge-tag.earned-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.badge-tag.more-badges {
+  background: #f3f4f6;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 .badge-tag.moderator {
@@ -1064,7 +1172,7 @@
     font-size: 1.5rem;
   }
 
-  .user-avatar-xlarge {
+  .user-image-xlarge {
     width: 90px;
     height: 90px;
     font-size: 3rem;
@@ -1089,7 +1197,7 @@
 /* Gamification Progress Card */
 .gamification-progress-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 2rem;
   margin-bottom: 2rem;
   color: white;
@@ -1103,10 +1211,53 @@
   margin-bottom: 1.5rem;
 }
 
-.level-info h2 {
+.level-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.level-icon-wrapper {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.level-icon {
+  font-size: 2.5rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.level-icon-image {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.level-details {
+  flex: 1;
+}
+
+.level-details h2 {
   font-size: 1.75rem;
-  margin-bottom: 0.5rem;
+  margin: 0 0 0.25rem 0;
   color: white;
+  font-weight: 700;
+}
+
+.xp-total {
+  font-size: 0.95rem;
+  margin: 0;
+  opacity: 0.9;
+  font-weight: 500;
 }
 
 .rank-badge {
@@ -1163,9 +1314,48 @@
 }
 
 .xp-text {
-  font-size: 1rem;
+  font-size: 1.05rem;
   margin-bottom: 0.75rem;
   opacity: 0.95;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.current-xp {
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.xp-divider {
+  opacity: 0.6;
+  margin: 0 0.25rem;
+}
+
+.required-xp {
+  font-weight: 600;
+}
+
+.next-level-info {
+  opacity: 0.85;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.next-level-icon {
+  font-size: 1.2rem;
+  margin: 0 0.2rem;
+}
+
+.max-level {
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .xp-progress-bar {
@@ -1519,8 +1709,29 @@
     gap: 1rem;
   }
 
-  .level-info h2 {
+  .level-info {
+    flex-direction: row;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .level-icon-wrapper {
+    width: 60px;
+    height: 60px;
+  }
+
+  .level-icon {
+    font-size: 2rem;
+  }
+
+  .level-details h2 {
     font-size: 1.5rem;
+  }
+
+  .xp-text {
+    font-size: 0.95rem;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .badges-grid-enhanced {
@@ -1544,6 +1755,19 @@
 }
 
 @media (max-width: 480px) {
+  .level-icon-wrapper {
+    width: 50px;
+    height: 50px;
+  }
+
+  .level-icon {
+    font-size: 1.75rem;
+  }
+
+  .level-details h2 {
+    font-size: 1.25rem;
+  }
+
   .badges-grid-enhanced {
     grid-template-columns: 1fr;
   }

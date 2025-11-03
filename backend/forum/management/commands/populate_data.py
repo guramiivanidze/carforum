@@ -43,7 +43,6 @@ class Command(BaseCommand):
                 UserProfile.objects.get_or_create(
                     user=user,
                     defaults={
-                        "avatar": "🚗",
                         "points": 10
                     }
                 )

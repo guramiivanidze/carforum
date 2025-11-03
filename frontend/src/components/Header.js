@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 function Header() {
@@ -9,6 +9,7 @@ function Header() {
   const [scrolled, setScrolled] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Handle scroll effect
   useEffect(() => {
@@ -38,7 +39,6 @@ function Header() {
     logout();
     setShowDropdown(false);
     setShowMobileMenu(false);
-    navigate('/');
   };
 
   const closeMobileMenu = () => {
@@ -62,8 +62,16 @@ function Header() {
                 className="user-menu-button"
                 onClick={() => setShowDropdown(!showDropdown)}
               >
-                <div className="user-avatar-wrapper">
-                  <span className="user-avatar-icon">{profile?.avatar || '👤'}</span>
+                <div className="user-image-wrapper">
+                  {profile?.user_image_url ? (
+                    <img 
+                      src={profile.user_image_url} 
+                      alt={user?.username}
+                      className="user-image-display"
+                    />
+                  ) : (
+                    <span className="user-image-icon">{user?.username?.[0]?.toUpperCase() || '?'}</span>
+                  )}
                 </div>
               </button>
               
@@ -71,7 +79,15 @@ function Header() {
                 <div className="user-dropdown">
                   <div className="dropdown-header">
                     <div className="dropdown-user-info">
-                      <span className="dropdown-avatar">{profile?.avatar || '👤'}</span>
+                      {profile?.user_image_url ? (
+                        <img 
+                          src={profile.user_image_url} 
+                          alt={user?.username}
+                          className="dropdown-image-display"
+                        />
+                      ) : (
+                        <span className="dropdown-image">{user?.username?.[0]?.toUpperCase() || '?'}</span>
+                      )}
                       <div>
                         <div className="dropdown-username">{user?.username}</div>
                         <div className="dropdown-email">{user?.email}</div>
@@ -107,7 +123,11 @@ function Header() {
               )}
             </div>
           ) : (
-            <Link to="/login" className="login-btn mobile-login-btn">
+            <Link 
+              to="/login" 
+              className="login-btn mobile-login-btn"
+              state={{ from: location.pathname }}
+            >
               <span>🔐</span>
               <span>Login</span>
             </Link>
@@ -146,8 +166,16 @@ function Header() {
                   className="user-menu-button"
                   onClick={() => setShowDropdown(!showDropdown)}
                 >
-                  <div className="user-avatar-wrapper">
-                    <span className="user-avatar-icon">{profile?.avatar || '👤'}</span>
+                  <div className="user-image-wrapper">
+                    {profile?.user_image_url ? (
+                      <img 
+                        src={profile.user_image_url} 
+                        alt={user?.username}
+                        className="user-image-display"
+                      />
+                    ) : (
+                      <span className="user-image-icon">{user?.username?.[0]?.toUpperCase() || '?'}</span>
+                    )}
                   </div>
                   <span className="user-name">{user?.username}</span>
                   <span className={`dropdown-arrow ${showDropdown ? 'open' : ''}`}>▼</span>
@@ -157,7 +185,15 @@ function Header() {
                   <div className="user-dropdown">
                     <div className="dropdown-header">
                       <div className="dropdown-user-info">
-                        <span className="dropdown-avatar">{profile?.avatar || '👤'}</span>
+                        {profile?.user_image_url ? (
+                          <img 
+                            src={profile.user_image_url} 
+                            alt={user?.username}
+                            className="dropdown-image-display"
+                          />
+                        ) : (
+                          <span className="dropdown-image">{user?.username?.[0]?.toUpperCase() || '?'}</span>
+                        )}
                         <div>
                           <div className="dropdown-username">{user?.username}</div>
                           <div className="dropdown-email">{user?.email}</div>
@@ -194,7 +230,11 @@ function Header() {
               </div>
             </>
           ) : (
-            <Link to="/login" className="login-btn">
+            <Link 
+              to="/login" 
+              className="login-btn"
+              state={{ from: location.pathname }}
+            >
               <span>🔐</span>
               <span>Login / Sign Up</span>
             </Link>

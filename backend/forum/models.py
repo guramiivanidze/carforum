@@ -65,6 +65,7 @@ class Topic(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='topics')
     content = models.TextField(blank=True)
     tags = models.ManyToManyField(Tag, related_name='topics', blank=True)
+    likes = models.ManyToManyField(User, related_name='liked_topics', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     views = models.IntegerField(default=0)
@@ -78,6 +79,10 @@ class Topic(models.Model):
     @property
     def replies_count(self):
         return self.replies.filter(is_hidden=False).count()
+    
+    @property
+    def likes_count(self):
+        return self.likes.count()
 
 
 class Reply(models.Model):
@@ -110,7 +115,7 @@ class Reply(models.Model):
 class UserProfile(models.Model):
     """Extended user profile"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    avatar = models.CharField(max_length=10, default='👤')
+    user_image = models.ImageField(upload_to='user_images/', null=True, blank=True)
     points = models.IntegerField(default=0)
     bio = models.TextField(blank=True)
     

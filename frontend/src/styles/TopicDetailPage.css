@@ -89,15 +89,6 @@
   font-size: 1rem;
 }
 
-/* Topic Tags */
-.topic-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 1rem;
-  margin-top: 1rem;
-}
-
 .topic-tag {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -142,7 +133,7 @@
   min-width: 140px;
 }
 
-.user-avatar-large {
+.user-image-large {
   width: 80px;
   height: 80px;
   border-radius: 50%;
@@ -151,9 +142,18 @@
   align-items: center;
   justify-content: center;
   font-size: 2.5rem;
+  overflow: hidden;
+  position: relative;
 }
 
-.user-avatar-medium {
+.user-image-large .image-display {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.user-image-medium {
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -162,9 +162,18 @@
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
+  overflow: hidden;
+  position: relative;
 }
 
-.user-avatar-small {
+.user-image-medium .image-display {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.user-image-small {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -574,6 +583,54 @@
 .nested-reply {
   border-left: 3px solid #2563eb;
   background: #f9fafb;
+  padding: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+  font-size: 0.9rem;
+  border-radius: 8px !important;
+}
+
+.nested-reply .reply-author {
+  margin-bottom: 0.4rem !important;
+}
+
+.nested-reply .reply-author-avatar {
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 0.85rem !important;
+}
+
+.nested-reply .reply-meta {
+  font-size: 0.8rem !important;
+}
+
+.nested-reply .reply-username {
+  font-size: 0.85rem !important;
+}
+
+.nested-reply .reply-time {
+  font-size: 0.75rem !important;
+}
+
+.nested-reply .reply-content {
+  padding: 0.4rem 0 !important;
+  font-size: 0.9rem !important;
+  line-height: 1.4 !important;
+}
+
+.nested-reply .reply-mention {
+  font-size: 0.8rem !important;
+  padding: 0.25rem 0.5rem !important;
+  margin-bottom: 0.4rem !important;
+}
+
+.nested-reply .reply-actions {
+  margin-top: 0.4rem !important;
+  gap: 0.4rem !important;
+}
+
+.nested-reply .reply-action-btn {
+  padding: 0.35rem 0.7rem !important;
+  font-size: 0.8rem !important;
 }
 
 .reply-card {
@@ -766,7 +823,7 @@
   text-align: center;
 }
 
-.author-info-card .user-avatar-large {
+.author-info-card .user-image-large {
   width: 100px;
   height: 100px;
   font-size: 3rem;
@@ -902,12 +959,12 @@
   gap: 0.75rem;
 }
 
-.active-user-avatars {
+.active-user-images {
   display: flex;
   gap: 0.5rem;
 }
 
-.avatar-tiny {
+.image-tiny {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -1016,7 +1073,7 @@
     min-width: unset;
   }
   
-  .user-avatar-large {
+  .user-image-large {
     width: 60px;
     height: 60px;
     font-size: 2rem;
@@ -1572,5 +1629,123 @@
   
   .poll-option-stats {
     font-size: 0.8rem;
+  }
+}
+
+/* Login Modal */
+.login-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.login-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.login-modal h2 {
+  margin: 0 0 1rem 0;
+  color: #1f2937;
+  font-size: 1.5rem;
+}
+
+.login-modal p {
+  color: #6b7280;
+  margin: 0 0 1.5rem 0;
+}
+
+.login-modal-actions {
+  display: flex;
+  gap: 1rem;
+  flex-direction: column;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-text {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn-text {
+  background: transparent;
+  color: #6b7280;
+}
+
+.btn-text:hover {
+  color: #1f2937;
+}
+
+/* Flash Effect for Reply After Login */
+.flash-reply {
+  animation: flashBorder 2s ease-in-out !important;
+}
+
+.flash-reply-red {
+  animation: flashBorderRed 2s ease-in-out !important;
+}
+
+@keyframes flashBorder {
+  0%, 100% {
+    border: 1px solid #e5e7eb;
+  }
+  10%, 30%, 50%, 70%, 90% {
+    border: 3px solid #3b82f6;
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+  }
+  20%, 40%, 60%, 80% {
+    border: 1px solid #e5e7eb;
+    box-shadow: none;
+  }
+}
+
+@keyframes flashBorderRed {
+  0%, 100% {
+    border: 1px solid #e5e7eb;
+  }
+  10%, 30%, 50%, 70%, 90% {
+    border: 3px solid #ef4444;
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+  }
+  20%, 40%, 60%, 80% {
+    border: 1px solid #e5e7eb;
+    box-shadow: none;
   }
 }

@@ -102,10 +102,10 @@ function SearchPage() {
 
       // Mock top contributors
       setTopContributors([
-        { id: 1, username: 'guka_dev', avatar: '👨‍💻', posts: 142, reputation: 543 },
-        { id: 2, username: 'tech_guru', avatar: '🧑‍💼', posts: 128, reputation: 489 },
-        { id: 3, username: 'qa_master', avatar: '👩‍🔬', posts: 115, reputation: 421 },
-        { id: 4, username: 'code_ninja', avatar: '🥷', posts: 98, reputation: 387 }
+        { id: 1, username: 'guka_dev', posts: 142, reputation: 543 },
+        { id: 2, username: 'tech_guru', posts: 128, reputation: 489 },
+        { id: 3, username: 'qa_master', posts: 115, reputation: 421 },
+        { id: 4, username: 'code_ninja', posts: 98, reputation: 387 }
       ]);
 
     } catch (err) {
@@ -249,7 +249,7 @@ function SearchPage() {
                         className="suggestion-item"
                         onClick={() => setShowSuggestions(false)}
                       >
-                        <span className="suggestion-avatar">{user.avatar}</span>
+                        <span className="suggestion-image">{user.username?.[0]?.toUpperCase() || '?'}</span>
                         <span className="suggestion-text">{user.username}</span>
                       </Link>
                     ))}
@@ -345,7 +345,7 @@ function SearchPage() {
                     <div className="results-grid">
                       {searchResults.users.map(user => (
                         <Link key={user.id} to={`/profile/${user.id}`} className="user-result-card">
-                          <div className="user-result-avatar">{user.avatar || '👤'}</div>
+                          <div className="user-result-avatar">{user.username?.[0]?.toUpperCase() || '?'}</div>
                           <div className="user-result-info">
                             <h3 className="user-result-name">@{user.username}</h3>
                             <p className="user-result-stats">Points: {user.points || 0}</p>
@@ -486,7 +486,7 @@ function SearchPage() {
                   {topContributors.map(user => (
                     <div key={user.id} className="contributor-item">
                       <Link to={`/profile/${user.id}`} className="contributor-info">
-                        <div className="contributor-avatar">{user.avatar}</div>
+                        <div className="contributor-image">{user.username?.[0]?.toUpperCase() || '?'}</div>
                         <div className="contributor-details">
                           <h3 className="contributor-name">@{user.username}</h3>
                           <p className="contributor-stats">

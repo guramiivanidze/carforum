@@ -32,7 +32,17 @@ function TopicsSection({ topics, loading }) {
           <Link to={`/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none', color: 'inherit' }}>
             <div className="topic-card">
               <div className="topic-header">
-                <div className="topic-avatar">{topic.author.avatar}</div>
+                <div className="topic-image">
+                  {topic.author?.user_image_url ? (
+                    <img 
+                      src={topic.author.user_image_url} 
+                      alt={topic.author.username}
+                      className="image-display"
+                    />
+                  ) : (
+                    topic.author?.username?.[0]?.toUpperCase() || '?'
+                  )}
+                </div>
                 <div className="topic-info">
                   <div className="topic-title">{topic.title}</div>
                   <div className="topic-meta">

@@ -2,13 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getCategories, createTopic, getTopic, updateTopic, getPopularTags } from '../services/api';
-import MDEditor from '@uiw/react-md-editor';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import Link_Extension from '@tiptap/extension-link';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
 import '../styles/CreateTopicPage.css';
 
 function CreateTopicPage() {
   const navigate = useNavigate();
   const { id } = useParams(); // For edit mode
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, profile, loading: authLoading } = useAuth();
   const fileInputRef = useRef(null);
   
   const [categories, setCategories] = useState([]);
@@ -44,9 +49,45 @@ function CreateTopicPage() {
   const TITLE_MAX = 100;
   const CONTENT_MIN = 10;
 
+  // Tiptap editor configuration
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      TextStyle,
+      Color,
+      Link_Extension.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-blue-500 underline',
+        },
+      }),
+    ],
+    content: formData.content,
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      setFormData(prev => ({ ...prev, content: html }));
+      if (errors.content) {
+        setErrors(prev => ({ ...prev, content: '' }));
+      }
+    },
+  });
+
+  // Update editor content when editing existing topic
+  useEffect(() => {
+    if (editor && formData.content && editor.getHTML() !== formData.content) {
+      editor.commands.setContent(formData.content);
+    }
+  }, [editor, formData.content]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Wait for auth to finish loading
+        if (authLoading) {
+          return;
+        }
+
         // Check authentication
         if (!isAuthenticated) {
           setShowLoginModal(true);
@@ -111,7 +152,7 @@ function CreateTopicPage() {
     };
 
     fetchData();
-  }, [id, isEditMode, isAuthenticated, user, navigate]);
+  }, [id, isEditMode, isAuthenticated, authLoading, user, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -259,7 +300,9 @@ function CreateTopicPage() {
       newErrors.category = 'Please select a category';
     }
 
-    if (!formData.content || formData.content.trim().length < CONTENT_MIN) {
+    // Strip HTML tags for content validation
+    const contentText = formData.content.replace(/<[^>]*>/g, '').trim();
+    if (!contentText || contentText.length < CONTENT_MIN) {
       newErrors.content = `Content must be at least ${CONTENT_MIN} characters`;
     }
 
@@ -409,10 +452,17 @@ function CreateTopicPage() {
               <h1 className="preview-title">{formData.title || 'Untitled Topic'}</h1>
               <div className="preview-meta">
                 <span className="preview-author">
-                  <img 
-                    src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.username || 'User'}&background=667eea&color=fff`} 
-                    alt={user?.username}
-                  />
+                  <span className="preview-author-initial">
+                    {user?.user_image_url ? (
+                      <img 
+                        src={user.user_image_url} 
+                        alt={user.username}
+                        className="image-display"
+                      />
+                    ) : (
+                      user?.username?.[0]?.toUpperCase() || '?'
+                    )}
+                  </span>
                   {user?.username}
                 </span>
                 {selectedCategory && (
@@ -424,7 +474,7 @@ function CreateTopicPage() {
             </div>
 
             <div className="preview-content">
-              <MDEditor.Markdown source={formData.content || '*No content yet*'} />
+              <div dangerouslySetInnerHTML={{ __html: formData.content || '<p><em>No content yet</em></p>' }} />
             </div>
 
             {uploadedImages.length > 0 && (
@@ -515,19 +565,6 @@ function CreateTopicPage() {
           <span className="current">{isEditMode ? 'Edit Topic' : 'Create New Topic'}</span>
         </nav>
 
-        {/* User Info */}
-        <div className="author-info">
-          <img 
-            src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.username || 'User'}&background=667eea&color=fff`} 
-            alt={user?.username}
-            className="author-avatar"
-          />
-          <div className="author-details">
-            <h3>{user?.username}</h3>
-            <p>{isEditMode ? 'Editing your topic' : 'Starting a new discussion'}</p>
-          </div>
-        </div>
-
         {/* Page Header */}
         <div className="page-header">
           <h1>{isEditMode ? '✏️ Edit Your Discussion' : '✨ Start a New Discussion'}</h1>
@@ -595,25 +632,100 @@ function CreateTopicPage() {
               📄 Content <span className="required">*</span>
             </label>
             
-            <MDEditor
-              value={formData.content}
-              onChange={(value) => {
-                setFormData(prev => ({ ...prev, content: value || '' }));
-                if (errors.content) {
-                  setErrors(prev => ({ ...prev, content: '' }));
-                }
-              }}
-              preview="live"
-              height={400}
-              textareaProps={{
-                placeholder: 'Write your content here... Use markdown for formatting!\n\n**Bold** *Italic* [Link](url) `code`'
-              }}
-            />
+            {/* Tiptap Toolbar */}
+            <div className="tiptap-toolbar">
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                className={editor?.isActive('bold') ? 'is-active' : ''}
+                title="Bold"
+              >
+                <strong>B</strong>
+              </button>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                className={editor?.isActive('italic') ? 'is-active' : ''}
+                title="Italic"
+              >
+                <em>I</em>
+              </button>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                className={editor?.isActive('underline') ? 'is-active' : ''}
+                title="Underline"
+              >
+                <u>U</u>
+              </button>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                className={editor?.isActive('strike') ? 'is-active' : ''}
+                title="Strikethrough"
+              >
+                <s>S</s>
+              </button>
+              <span className="toolbar-divider"></span>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                className={editor?.isActive('heading', { level: 2 }) ? 'is-active' : ''}
+                title="Heading"
+              >
+                H2
+              </button>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                className={editor?.isActive('heading', { level: 3 }) ? 'is-active' : ''}
+                title="Heading"
+              >
+                H3
+              </button>
+              <span className="toolbar-divider"></span>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                className={editor?.isActive('bulletList') ? 'is-active' : ''}
+                title="Bullet List"
+              >
+                • List
+              </button>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                className={editor?.isActive('orderedList') ? 'is-active' : ''}
+                title="Numbered List"
+              >
+                1. List
+              </button>
+              <span className="toolbar-divider"></span>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                className={editor?.isActive('codeBlock') ? 'is-active' : ''}
+                title="Code Block"
+              >
+                {'</>'}
+              </button>
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                className={editor?.isActive('blockquote') ? 'is-active' : ''}
+                title="Quote"
+              >
+                " "
+              </button>
+            </div>
+
+            {/* Tiptap Editor */}
+            <EditorContent editor={editor} className="tiptap-editor" />
             
             {errors.content && <span className="error-message">❌ {errors.content}</span>}
             {!errors.content && formData.content && (
               <span className="field-tip">
-                ✅ {formData.content.length} characters
+                ✅ {formData.content.replace(/<[^>]*>/g, '').length} characters
               </span>
             )}
           </div>

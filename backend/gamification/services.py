@@ -37,8 +37,15 @@ class GamificationService:
         return 0
     
     @staticmethod
-    def update_badge_progress(user, badge_name, increment=1):
-        """Update progress for a specific badge and return badge data if unlocked"""
+    def update_badge_progress(user, badge_name, increment=1, set_progress=None):
+        """Update progress for a specific badge and return badge data if unlocked
+        
+        Args:
+            user: User object
+            badge_name: Name of the badge
+            increment: Amount to increment progress by (default: 1)
+            set_progress: If provided, set progress to this value instead of incrementing
+        """
         try:
             badge = Badge.objects.get(name=badge_name, is_active=True)
             user_badge, created = UserBadge.objects.get_or_create(
@@ -46,7 +53,18 @@ class GamificationService:
                 badge=badge
             )
             was_unlocked = user_badge.unlocked
-            user_badge.update_progress(increment)
+            
+            if set_progress is not None:
+                # Set progress to specific value
+                if not user_badge.unlocked:
+                    user_badge.progress = set_progress
+                    if user_badge.progress >= badge.requirement_count:
+                        user_badge.unlock_badge()
+                    else:
+                        user_badge.save()
+            else:
+                # Increment progress
+                user_badge.update_progress(increment)
             
             # Return badge data if newly unlocked
             if user_badge.unlocked and not was_unlocked:
@@ -182,31 +200,156 @@ class GamificationService:
         # Award daily login XP
         xp_awarded = GamificationService.award_xp(user, 'daily_login')
         
-        # Update streak badges
+        # Update streak badges with current streak count
         badges_unlocked = []
+        current_streak = user_streak.current_streak
         
-        if user_streak.current_streak >= 3:
-            badge = GamificationService.update_badge_progress(user, '3 Days Active', 0)
+        # Update progress for all streak badges based on current streak
+        if current_streak >= 100:
+            badge = GamificationService.update_badge_progress(
+                user, '100 Days Active', set_progress=current_streak
+            )
+            if badge:
+                badges_unlocked.append(badge)
+        
+        if current_streak >= 30:
+            badge = GamificationService.update_badge_progress(
+                user, '30 Days Active', set_progress=current_streak
+            )
             if badge:
                 badges_unlocked.append(badge)
                 
-        if user_streak.current_streak >= 7:
-            badge = GamificationService.update_badge_progress(user, '7 Days Active', 0)
+        if current_streak >= 7:
+            badge = GamificationService.update_badge_progress(
+                user, '7 Days Active', set_progress=current_streak
+            )
             if badge:
                 badges_unlocked.append(badge)
                 
-        if user_streak.current_streak >= 30:
-            badge = GamificationService.update_badge_progress(user, '30 Days Active', 0)
+        if current_streak >= 3:
+            badge = GamificationService.update_badge_progress(
+                user, '3 Days Active', set_progress=current_streak
+            )
             if badge:
                 badges_unlocked.append(badge)
-                
-        if user_streak.current_streak >= 100:
-            badge = GamificationService.update_badge_progress(user, '100 Days Active', 0)
-            if badge:
-                badges_unlocked.append(badge)
+        
+        # Also update progress for badges not yet reached
+        if current_streak < 100:
+            GamificationService.update_badge_progress(
+                user, '100 Days Active', set_progress=current_streak
+            )
+        if current_streak < 30:
+            GamificationService.update_badge_progress(
+                user, '30 Days Active', set_progress=current_streak
+            )
+        if current_streak < 7:
+            GamificationService.update_badge_progress(
+                user, '7 Days Active', set_progress=current_streak
+            )
+        if current_streak < 3:
+            GamificationService.update_badge_progress(
+                user, '3 Days Active', set_progress=current_streak
+            )
         
         return {
             'xp_awarded': xp_awarded,
             'current_streak': user_streak.current_streak,
             'badges_unlocked': badges_unlocked
+        }
+    
+    @staticmethod
+    def check_topic_likes_badges(topic_author):
+        """Check and award badges based on topic likes"""
+        from forum.models import Topic
+        
+        # Ensure all badges exist for this user
+        GamificationService.ensure_user_badges(topic_author)
+        
+        badges_unlocked = []
+        
+        # Get all topics by this author
+        author_topics = Topic.objects.filter(author=topic_author)
+        
+        # Find the maximum likes on any single topic
+        max_likes_on_single_topic = 0
+        for topic in author_topics:
+            likes_count = topic.likes.count()
+            if likes_count > max_likes_on_single_topic:
+                max_likes_on_single_topic = likes_count
+        
+        # Update single topic badges with max likes progress
+        badge = GamificationService.update_badge_progress(
+            topic_author, 'Viral Post', set_progress=max_likes_on_single_topic
+        )
+        if badge:
+            badges_unlocked.append(badge)
+        
+        badge = GamificationService.update_badge_progress(
+            topic_author, 'Popular Post', set_progress=max_likes_on_single_topic
+        )
+        if badge:
+            badges_unlocked.append(badge)
+        
+        badge = GamificationService.update_badge_progress(
+            topic_author, 'Liked Post', set_progress=max_likes_on_single_topic
+        )
+        if badge:
+            badges_unlocked.append(badge)
+        
+        # Calculate total likes across all topics
+        total_likes = sum(topic.likes.count() for topic in author_topics)
+        
+        # Update total likes badges with cumulative progress
+        badge = GamificationService.update_badge_progress(
+            topic_author, 'Superstar', set_progress=total_likes
+        )
+        if badge:
+            badges_unlocked.append(badge)
+        
+        badge = GamificationService.update_badge_progress(
+            topic_author, 'Influencer', set_progress=total_likes
+        )
+        if badge:
+            badges_unlocked.append(badge)
+        
+        badge = GamificationService.update_badge_progress(
+            topic_author, 'Community Favorite', set_progress=total_likes
+        )
+        if badge:
+            badges_unlocked.append(badge)
+        
+        badge = GamificationService.update_badge_progress(
+            topic_author, 'Well Liked', set_progress=total_likes
+        )
+        if badge:
+            badges_unlocked.append(badge)
+        
+        return {
+            'total_likes': total_likes,
+            'badges_unlocked': badges_unlocked
+        }
+    
+    @staticmethod
+    def check_reports_badge(reporter):
+        """Check and award badge for reporting inappropriate posts
+        
+        Args:
+            reporter: User who made the report
+            
+        Returns:
+            dict: Contains badge info if unlocked
+        """
+        from forum.models import Report
+        
+        # Count total reports made by the user
+        total_reports = Report.objects.filter(reporter=reporter).count()
+        
+        # Update progress for Moderator Friend badge
+        badge = GamificationService.update_badge_progress(
+            reporter, 'Moderator Friend', set_progress=total_reports
+        )
+        
+        return {
+            'total_reports': total_reports,
+            'badge_unlocked': badge
         }

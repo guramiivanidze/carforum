@@ -12,7 +12,6 @@ const BadgesPage = () => {
   // Mock user data - replace with actual API call
   const userData = {
     username: user?.username || 'User',
-    avatar: '👤',
     level: 8,
     levelName: 'Veteran',
     xp: 4580,
@@ -173,7 +172,7 @@ const BadgesPage = () => {
       {/* User Info Header */}
       <div className="user-progress-card">
         <div className="user-info-header">
-          <div className="user-avatar-large">{userData.avatar}</div>
+          <div className="user-image-large">{userData.username?.[0]?.toUpperCase() || '?'}</div>
           <div className="user-stats">
             <h2>{userData.username} <span className="level-badge">Level {userData.level} - {userData.levelName}</span></h2>
             <div className="xp-info">

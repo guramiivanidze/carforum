@@ -1,11 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    UserLevelViewSet, BadgeViewSet, UserBadgeViewSet, 
+    LevelViewSet, UserLevelViewSet, BadgeViewSet, UserBadgeViewSet, 
     UserStreakViewSet, user_gamification
 )
 
 router = DefaultRouter()
+router.register(r'levels', LevelViewSet)
 router.register(r'user-levels', UserLevelViewSet)
 router.register(r'badges', BadgeViewSet)
 router.register(r'user-badges', UserBadgeViewSet)

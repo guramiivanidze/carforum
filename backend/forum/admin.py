@@ -1,8 +1,102 @@
 from django.contrib import admin
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
 from .models import (
     Category, CategoryRule, Tag, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
     TopicImage, Poll, PollOption, PollVote
 )
+
+
+# Resources for import/export
+class CategoryResource(resources.ModelResource):
+    class Meta:
+        model = Category
+        import_id_fields = ['id']
+        fields = ('id', 'title', 'description', 'icon', 'topics_count', 'created_at')
+
+
+class CategoryRuleResource(resources.ModelResource):
+    class Meta:
+        model = CategoryRule
+        import_id_fields = ['id']
+        fields = ('id', 'category__title', 'title', 'description', 'order', 'is_active', 'created_at')
+
+
+class TagResource(resources.ModelResource):
+    class Meta:
+        model = Tag
+        import_id_fields = ['slug']
+        fields = ('name', 'slug', 'usage_count', 'created_at')
+
+
+class TopicResource(resources.ModelResource):
+    class Meta:
+        model = Topic
+        import_id_fields = ['id']
+        fields = ('id', 'title', 'content', 'author__username', 'category__title', 'views', 'created_at', 'updated_at')
+
+
+class ReplyResource(resources.ModelResource):
+    class Meta:
+        model = Reply
+        import_id_fields = ['id']
+        fields = ('id', 'topic__title', 'author__username', 'content', 'is_hidden', 'created_at')
+
+
+class UserProfileResource(resources.ModelResource):
+    class Meta:
+        model = UserProfile
+        import_id_fields = ['user']
+        fields = ('user__username', 'bio', 'location', 'website', 'points', 'avatar_image')
+
+
+class BookmarkResource(resources.ModelResource):
+    class Meta:
+        model = Bookmark
+        import_id_fields = ['id']
+        fields = ('id', 'user__username', 'topic__title', 'created_at')
+
+
+class ReportReasonResource(resources.ModelResource):
+    class Meta:
+        model = ReportReason
+        import_id_fields = ['id']
+        fields = ('id', 'title', 'description', 'is_active', 'order')
+
+
+class ReportResource(resources.ModelResource):
+    class Meta:
+        model = Report
+        import_id_fields = ['id']
+        fields = ('id', 'reporter__username', 'reply__id', 'reason__title', 'status', 'additional_info', 'created_at', 'reviewed_by__username', 'reviewed_at')
+
+
+class TopicImageResource(resources.ModelResource):
+    class Meta:
+        model = TopicImage
+        import_id_fields = ['id']
+        fields = ('id', 'topic__title', 'caption', 'order', 'created_at')
+
+
+class PollResource(resources.ModelResource):
+    class Meta:
+        model = Poll
+        import_id_fields = ['id']
+        fields = ('id', 'topic__title', 'question', 'created_at')
+
+
+class PollOptionResource(resources.ModelResource):
+    class Meta:
+        model = PollOption
+        import_id_fields = ['id']
+        fields = ('id', 'poll__question', 'text', 'order', 'created_at')
+
+
+class PollVoteResource(resources.ModelResource):
+    class Meta:
+        model = PollVote
+        import_id_fields = ['id']
+        fields = ('id', 'user__username', 'poll_option__text', 'created_at')
 
 
 class CategoryRuleInline(admin.TabularInline):
@@ -13,14 +107,16 @@ class CategoryRuleInline(admin.TabularInline):
 
 
 @admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(ImportExportModelAdmin):
+    resource_class = CategoryResource
     list_display = ['title', 'icon', 'topics_count', 'created_at']
     search_fields = ['title', 'description']
     inlines = [CategoryRuleInline]
 
 
 @admin.register(CategoryRule)
-class CategoryRuleAdmin(admin.ModelAdmin):
+class CategoryRuleAdmin(ImportExportModelAdmin):
+    resource_class = CategoryRuleResource
     list_display = ['title', 'category', 'order', 'is_active', 'created_at']
     list_filter = ['is_active', 'category', 'created_at']
     search_fields = ['title', 'description', 'category__title']
@@ -29,7 +125,8 @@ class CategoryRuleAdmin(admin.ModelAdmin):
 
 
 @admin.register(Tag)
-class TagAdmin(admin.ModelAdmin):
+class TagAdmin(ImportExportModelAdmin):
+    resource_class = TagResource
     list_display = ['name', 'slug', 'usage_count', 'created_at']
     search_fields = ['name', 'slug']
     prepopulated_fields = {'slug': ('name',)}
@@ -37,7 +134,8 @@ class TagAdmin(admin.ModelAdmin):
 
 
 @admin.register(Topic)
-class TopicAdmin(admin.ModelAdmin):
+class TopicAdmin(ImportExportModelAdmin):
+    resource_class = TopicResource
     list_display = ['title', 'author', 'category', 'replies_count', 'likes_count', 'views', 'created_at', 'updated_at']
     list_filter = ['category', 'created_at']
     search_fields = ['title', 'content', 'author__username']
@@ -58,7 +156,8 @@ class TopicAdmin(admin.ModelAdmin):
 
 
 @admin.register(Reply)
-class ReplyAdmin(admin.ModelAdmin):
+class ReplyAdmin(ImportExportModelAdmin):
+    resource_class = ReplyResource
     list_display = ['topic', 'author', 'created_at']
     list_filter = ['created_at']
     search_fields = ['content', 'author__username', 'topic__title']
@@ -66,13 +165,15 @@ class ReplyAdmin(admin.ModelAdmin):
 
 
 @admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
+class UserProfileAdmin(ImportExportModelAdmin):
+    resource_class = UserProfileResource
     list_display = ['user', 'points', 'bio']
     search_fields = ['user__username', 'user__email']
 
 
 @admin.register(Bookmark)
-class BookmarkAdmin(admin.ModelAdmin):
+class BookmarkAdmin(ImportExportModelAdmin):
+    resource_class = BookmarkResource
     list_display = ['user', 'topic', 'created_at']
     list_filter = ['created_at']
     search_fields = ['user__username', 'topic__title']
@@ -80,7 +181,8 @@ class BookmarkAdmin(admin.ModelAdmin):
 
 
 @admin.register(ReportReason)
-class ReportReasonAdmin(admin.ModelAdmin):
+class ReportReasonAdmin(ImportExportModelAdmin):
+    resource_class = ReportReasonResource
     list_display = ['title', 'is_active', 'order', 'created_at']
     list_filter = ['is_active']
     search_fields = ['title', 'description']
@@ -88,7 +190,8 @@ class ReportReasonAdmin(admin.ModelAdmin):
 
 
 @admin.register(Report)
-class ReportAdmin(admin.ModelAdmin):
+class ReportAdmin(ImportExportModelAdmin):
+    resource_class = ReportResource
     list_display = ['reporter', 'reply', 'reason', 'status', 'created_at', 'reviewed_by']
     list_filter = ['status', 'created_at', 'reason']
     search_fields = ['reporter__username', 'reply__content', 'additional_info']
@@ -124,7 +227,8 @@ class ReportAdmin(admin.ModelAdmin):
 
 
 @admin.register(TopicImage)
-class TopicImageAdmin(admin.ModelAdmin):
+class TopicImageAdmin(ImportExportModelAdmin):
+    resource_class = TopicImageResource
     list_display = ['topic', 'caption', 'order', 'created_at']
     list_filter = ['created_at']
     search_fields = ['topic__title', 'caption']
@@ -138,7 +242,8 @@ class PollOptionInline(admin.TabularInline):
 
 
 @admin.register(Poll)
-class PollAdmin(admin.ModelAdmin):
+class PollAdmin(ImportExportModelAdmin):
+    resource_class = PollResource
     list_display = ['question', 'topic', 'total_votes', 'created_at']
     search_fields = ['question', 'topic__title']
     readonly_fields = ['created_at', 'total_votes']
@@ -146,7 +251,8 @@ class PollAdmin(admin.ModelAdmin):
 
 
 @admin.register(PollOption)
-class PollOptionAdmin(admin.ModelAdmin):
+class PollOptionAdmin(ImportExportModelAdmin):
+    resource_class = PollOptionResource
     list_display = ['text', 'poll', 'votes_count', 'percentage', 'order']
     list_filter = ['poll']
     search_fields = ['text', 'poll__question']
@@ -154,7 +260,8 @@ class PollOptionAdmin(admin.ModelAdmin):
 
 
 @admin.register(PollVote)
-class PollVoteAdmin(admin.ModelAdmin):
+class PollVoteAdmin(ImportExportModelAdmin):
+    resource_class = PollVoteResource
     list_display = ['user', 'poll_option', 'created_at']
     list_filter = ['created_at']
     search_fields = ['user__username', 'poll__option__text']

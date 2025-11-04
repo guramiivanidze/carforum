@@ -700,7 +700,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def update_profile(self, request, pk=None):
-        """Update user profile (first_name, last_name, bio)"""
+        """Update user profile (first_name, last_name, bio, social media URLs)"""
         profile = self.get_object()
         
         # Check if user is trying to update their own profile
@@ -734,10 +734,35 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         if first_name is not None or last_name is not None:
             profile.user.save()
         
+        # Prepare data for profile update
+        profile_update_data = {}
+        
         # Update bio if provided
         bio = request.data.get('bio')
         if bio is not None:
-            serializer = self.get_serializer(profile, data={'bio': bio}, partial=True)
+            profile_update_data['bio'] = bio
+        
+        # Update skills if provided
+        skills = request.data.get('skills')
+        if skills is not None:
+            profile_update_data['skills'] = skills.strip() if skills else ''
+        
+        # Update social media URLs if provided
+        facebook_url = request.data.get('facebookUrl')
+        if facebook_url is not None:
+            profile_update_data['facebook_url'] = facebook_url.strip() if facebook_url else None
+        
+        linkedin_url = request.data.get('linkedinUrl')
+        if linkedin_url is not None:
+            profile_update_data['linkedin_url'] = linkedin_url.strip() if linkedin_url else None
+        
+        tiktok_url = request.data.get('tiktokUrl')
+        if tiktok_url is not None:
+            profile_update_data['tiktok_url'] = tiktok_url.strip() if tiktok_url else None
+        
+        # Update profile if there's any data to update
+        if profile_update_data:
+            serializer = self.get_serializer(profile, data=profile_update_data, partial=True)
             if serializer.is_valid():
                 serializer.save()
             else:

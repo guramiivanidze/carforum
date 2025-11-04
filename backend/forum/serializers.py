@@ -291,8 +291,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = UserProfile
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'points', 'bio', 'date_joined', 'user_image', 'user_image_url',
-                  'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count', 'following_count', 'is_following']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'points', 'bio', 'skills', 'date_joined', 'user_image', 'user_image_url',
+                  'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count', 'following_count', 'is_following',
+                  'facebook_url', 'linkedin_url', 'tiktok_url']
         read_only_fields = ['id', 'username', 'email', 'first_name', 'last_name', 'points', 'date_joined', 'user_image_url',
                             'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count', 'following_count', 'is_following']
     

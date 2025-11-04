@@ -119,6 +119,10 @@ class UserProfile(models.Model):
     user_image = CloudinaryField('image', null=True, blank=True, folder='user_images')
     points = models.IntegerField(default=0)
     bio = models.TextField(blank=True)
+    skills = models.TextField(blank=True, help_text='Comma-separated list of skills')
+    facebook_url = models.URLField(max_length=500, blank=True, null=True)
+    linkedin_url = models.URLField(max_length=500, blank=True, null=True)
+    tiktok_url = models.URLField(max_length=500, blank=True, null=True)
     
     def __str__(self):
         return f"{self.user.username}'s profile"

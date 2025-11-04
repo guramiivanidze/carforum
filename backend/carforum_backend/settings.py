@@ -56,7 +56,7 @@ INSTALLED_APPS = [
     'gamification',
     'import_export',  # Django Import-Export
     
-    'django_extensions'  # Commented out - not installed
+    # 'django_extensions'  # Commented out - not installed
 ]
 
 MIDDLEWARE = [

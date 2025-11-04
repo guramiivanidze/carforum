@@ -2,11 +2,11 @@ services:
   - type: web
     name: carforum-backend
     runtime: python
-    buildCommand: "./build.sh"
+    buildCommand: "chmod +x ./build.sh && ./build.sh"
     startCommand: "gunicorn carforum_backend.wsgi:application"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.11
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG

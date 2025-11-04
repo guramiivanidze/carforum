@@ -83,7 +83,7 @@ function CategoryPage() {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [id, itemsPerPage]);
+  }, [id, itemsPerPage, currentPage]);
 
   // Manual search function triggered by button click
   const handleSearch = async () => {

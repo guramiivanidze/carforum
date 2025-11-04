@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { getTopics, getCategories, searchAll, getPopularTags } from '../services/api';
 import '../styles/SearchPage.css';
 
 function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
   const searchInputRef = useRef(null);
 
   // State
@@ -31,8 +29,8 @@ function SearchPage() {
     tags: []
   });
 
-  // Active filters
-  const [filters, setFilters] = useState({
+  // Active filters - keeping filters even though setFilters is unused for now
+  const [filters] = useState({
     tag: null,
     category: null,
     minReplies: null,
@@ -43,6 +41,7 @@ function SearchPage() {
 
   useEffect(() => {
     fetchInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -51,6 +50,7 @@ function SearchPage() {
       setSearchQuery(query);
       performSearch(query);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   useEffect(() => {
@@ -63,6 +63,7 @@ function SearchPage() {
       setSearchResults({ topics: [], users: [], tags: [] });
       setShowSuggestions(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, activeFilter]);
 
   const fetchInitialData = async () => {

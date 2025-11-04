@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  getUserProfile, getUserReplies, getUserBookmarks, getUserTopics, getUserGamification, 
+import {
+  getUserProfile, getUserReplies, getUserBookmarks, getUserTopics, getUserGamification,
   uploadUserImage, toggleFollow, getFollowers, getFollowing, getFollowingTopics,
-  updateProfile as updateProfileAPI, changePassword 
+  updateProfile as updateProfileAPI, changePassword
 } from '../services/api';
 import SuccessModal from './SuccessModal';
 import '../styles/UserProfilePage.css';
@@ -20,44 +20,47 @@ function UserProfilePage() {
   const [userReplies, setUserReplies] = useState([]);
   const [userBookmarks, setUserBookmarks] = useState([]);
   const [userTopics, setUserTopics] = useState([]);
-  const [saving, setSaving] = useState(false);
-  
+
   // Follower/Following state
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [followingTopics, setFollowingTopics] = useState([]);
   const [followingSubTab, setFollowingSubTab] = useState('topics'); // 'topics' or 'users'
   const [followLoading, setFollowLoading] = useState(false);
-  
+
   // Image upload state
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
-  
+
   // Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  
+
   // Badges gamification state
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedBadge, setSelectedBadge] = useState(null);
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [gamificationData, setGamificationData] = useState(null);
   const [gamificationLoading, setGamificationLoading] = useState(false);
-  
+
   // Settings form state
   const [settingsData, setSettingsData] = useState({
     firstName: '',
     lastName: '',
-    bio: ''
+    bio: '',
+    skills: '',
+    facebookUrl: '',
+    linkedinUrl: '',
+    tiktokUrl: ''
   });
-  
+
   // Password form state
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
-  
+
   const [profileErrors, setProfileErrors] = useState({});
   const [passwordErrors, setPasswordErrors] = useState({});
   const [savingProfile, setSavingProfile] = useState(false);
@@ -76,18 +79,29 @@ function UserProfilePage() {
       try {
         const data = await getUserProfile(id);
         setProfile(data);
-        
+
         // Initialize settings data with profile data
         setSettingsData({
           firstName: data.first_name || '',
           lastName: data.last_name || '',
-          bio: data.bio || ''
+          bio: data.bio || '',
+          skills: data.skills || '',
+          facebookUrl: data.facebook_url || '',
+          linkedinUrl: data.linkedin_url || '',
+          tiktokUrl: data.tiktok_url || ''
         });
-        
+
         setLoading(false);
-        // Check if this is current user's profile
-        if (currentUserProfile && currentUserProfile.id === parseInt(id)) {
-          setIsOwnProfile(true);
+        // Check if this is current user's profile - MUST set to false if not own profile
+        const isOwn = currentUserProfile && currentUserProfile.id === parseInt(id);
+        setIsOwnProfile(isOwn);
+        
+        // If viewing another user's profile and current tab is private, reset to topics
+        if (!isOwn) {
+          const privateTabs = ['following', 'followers', 'replies', 'bookmarks', 'settings'];
+          if (privateTabs.includes(activeTab)) {
+            setActiveTab('topics');
+          }
         }
       } catch (err) {
         console.error('Error fetching profile:', err);
@@ -120,7 +134,7 @@ function UserProfilePage() {
         }
       }
     };
-    
+
     fetchReplies();
   }, [activeTab, id]);
 
@@ -252,7 +266,7 @@ function UserProfilePage() {
       alert('Please login to follow users');
       return;
     }
-    
+
     setFollowLoading(true);
     try {
       const result = await toggleFollow(id);
@@ -281,7 +295,7 @@ function UserProfilePage() {
       setProfileErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
-  
+
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({
@@ -296,30 +310,30 @@ function UserProfilePage() {
 
   const validateProfile = () => {
     const errors = {};
-    
+
     if (!settingsData.firstName || !settingsData.firstName.trim()) {
       errors.firstName = 'First name is required';
     }
-    
+
     if (!settingsData.lastName || !settingsData.lastName.trim()) {
       errors.lastName = 'Last name is required';
     }
-    
+
     if (settingsData.bio && settingsData.bio.length > 500) {
       errors.bio = 'Bio must be 500 characters or less';
     }
-    
+
     setProfileErrors(errors);
     return Object.keys(errors).length === 0;
   };
-  
+
   const validatePassword = () => {
     const errors = {};
-    
+
     if (!passwordData.currentPassword) {
       errors.currentPassword = 'Current password is required';
     }
-    
+
     if (!passwordData.newPassword) {
       errors.newPassword = 'New password is required';
     } else if (passwordData.newPassword.length < 8) {
@@ -329,13 +343,13 @@ function UserProfilePage() {
     } else if (!/[a-zA-Z]/.test(passwordData.newPassword)) {
       errors.newPassword = 'Password must contain at least one letter';
     }
-    
+
     if (!passwordData.confirmPassword) {
       errors.confirmPassword = 'Please confirm your password';
     } else if (passwordData.newPassword !== passwordData.confirmPassword) {
       errors.confirmPassword = 'Passwords do not match';
     }
-    
+
     setPasswordErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -344,30 +358,38 @@ function UserProfilePage() {
     if (!validateProfile()) {
       return;
     }
-    
+
     setSavingProfile(true);
     try {
-      const response = await updateProfileAPI(id, {
+      await updateProfileAPI(id, {
         firstName: settingsData.firstName,
         lastName: settingsData.lastName,
-        bio: settingsData.bio
+        bio: settingsData.bio,
+        skills: settingsData.skills,
+        facebookUrl: settingsData.facebookUrl,
+        linkedinUrl: settingsData.linkedinUrl,
+        tiktokUrl: settingsData.tiktokUrl
       });
-      
+
       // Update local profile state with new data
       const updatedProfileData = {
         ...profile,
         first_name: settingsData.firstName,
         last_name: settingsData.lastName,
-        bio: settingsData.bio
+        bio: settingsData.bio,
+        skills: settingsData.skills,
+        facebook_url: settingsData.facebookUrl,
+        linkedin_url: settingsData.linkedinUrl,
+        tiktok_url: settingsData.tiktokUrl
       };
-      
+
       setProfile(updatedProfileData);
-      
+
       // Update AuthContext if viewing own profile
       if (isOwnProfile && currentUserProfile) {
         updateProfile(updatedProfileData);
       }
-      
+
       setSuccessMessage('Profile updated successfully! 🎉');
       setShowSuccessModal(true);
     } catch (error) {
@@ -381,12 +403,12 @@ function UserProfilePage() {
       setSavingProfile(false);
     }
   };
-  
+
   const handleSavePassword = async () => {
     if (!validatePassword()) {
       return;
     }
-    
+
     setSavingPassword(true);
     try {
       await changePassword(id, {
@@ -394,17 +416,17 @@ function UserProfilePage() {
         new_password: passwordData.newPassword,
         confirm_password: passwordData.confirmPassword
       });
-      
+
       // Clear password form
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
-      
+
       setSuccessMessage('Password changed successfully! Please login again with your new password.');
       setShowSuccessModal(true);
-      
+
       // Optionally redirect to login after a delay
       setTimeout(() => {
         localStorage.removeItem('access_token');
@@ -422,11 +444,6 @@ function UserProfilePage() {
     } finally {
       setSavingPassword(false);
     }
-  };
-
-  const handleSaveSettings = async () => {
-    // This is now handled by separate functions
-    handleSaveProfile();
   };
 
   const handleImageClick = () => {
@@ -457,12 +474,12 @@ function UserProfilePage() {
     try {
       const updatedProfile = await uploadUserImage(profile.id, file);
       setProfile(updatedProfile);
-      
+
       // Update auth context
       if (currentUserProfile && currentUserProfile.id === updatedProfile.id) {
         updateProfile(updatedProfile);
       }
-      
+
       setSuccessMessage('Profile image updated successfully!');
       setShowSuccessModal(true);
     } catch (error) {
@@ -532,15 +549,9 @@ function UserProfilePage() {
     setSelectedBadge(null);
   };
 
-  const xpPercentage = gamificationData?.level_data 
-    ? (gamificationData.level_data.current_xp / gamificationData.level_data.xp_to_next_level) * 100 
+  const xpPercentage = gamificationData?.level_data
+    ? (gamificationData.level_data.current_xp / gamificationData.level_data.xp_to_next_level) * 100
     : 0;
-
-  const badges = [
-    { name: 'Problem Solver', icon: '🏅', description: 'Awarded for 10 helpful answers', earned: '2024-05-10' },
-    { name: 'Active Member', icon: '⭐', description: 'Posted 50+ times in one month', earned: '2024-06-20' },
-    { name: 'Community Helper', icon: '🤝', description: 'Helped 25+ members', earned: '2024-07-15' }
-  ];
 
   return (
     <div className="user-profile-page">
@@ -548,16 +559,16 @@ function UserProfilePage() {
       <div className="profile-header-card">
         <div className="profile-header-content">
           <div className="profile-image-section">
-            <div 
-              className="user-image-xlarge" 
+            <div
+              className="user-image-xlarge"
               onClick={handleImageClick}
               style={{ cursor: isOwnProfile ? 'pointer' : 'default' }}
             >
               {uploadingImage ? (
                 <div className="uploading-spinner">⏳</div>
               ) : profile.user_image_url ? (
-                <img 
-                  src={profile.user_image_url} 
+                <img
+                  src={profile.user_image_url}
                   alt={profile.username}
                   className="image-display"
                 />
@@ -574,7 +585,7 @@ function UserProfilePage() {
                   onChange={handleImageChange}
                   style={{ display: 'none' }}
                 />
-                <button 
+                <button
                   className="change-photo-btn"
                   onClick={handleImageClick}
                   disabled={uploadingImage}
@@ -593,7 +604,7 @@ function UserProfilePage() {
               </div>
               {!isOwnProfile && (
                 <div className="profile-action-buttons">
-                  <button 
+                  <button
                     className={`follow-btn ${profile.is_following ? 'following' : ''}`}
                     onClick={handleFollow}
                     disabled={followLoading}
@@ -612,9 +623,9 @@ function UserProfilePage() {
             <div className="profile-badges-row">
               {/* Display User Level */}
               {gamificationData?.level_data && (
-                <span 
-                  className="badge-tag level-badge" 
-                  style={{ 
+                <span
+                  className="badge-tag level-badge"
+                  style={{
                     backgroundColor: gamificationData.level_data.current_level_color + '20',
                     color: gamificationData.level_data.current_level_color,
                     border: `1px solid ${gamificationData.level_data.current_level_color}`,
@@ -622,8 +633,8 @@ function UserProfilePage() {
                   }}
                 >
                   {gamificationData.level_data.current_level_image ? (
-                    <img 
-                      src={gamificationData.level_data.current_level_image} 
+                    <img
+                      src={gamificationData.level_data.current_level_image}
                       alt={gamificationData.level_data.level_name}
                       className="level-image"
                     />
@@ -633,43 +644,54 @@ function UserProfilePage() {
                   {gamificationData.level_data.level_name}
                 </span>
               )}
-              
+
               {/* Display Earned Badges */}
               {gamificationData?.badges && gamificationData.badges
                 .filter(badge => badge.unlocked)
                 .slice(0, 3)
                 .map(badge => (
-                  <span 
-                    key={badge.id} 
+                  <span
+                    key={badge.id}
                     className="badge-tag earned-badge"
                     title={badge.description}
                   >
                     {badge.icon} {badge.name}
                   </span>
                 ))}
-              
+
               {/* Show badge count if more than 3 */}
               {gamificationData?.badges && gamificationData.badges.filter(b => b.unlocked).length > 3 && (
                 <span className="badge-tag more-badges">
                   +{gamificationData.badges.filter(b => b.unlocked).length - 3} more
                 </span>
               )}
-              
+
               <span className="profile-meta">🌍 Georgia</span>
               <span className="profile-meta">🕓 Joined: {new Date(profile.date_joined).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
             </div>
 
             <div className="profile-social-links">
-              <a href="#" className="social-link" title="GitHub">
-                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-                </svg>
-              </a>
-              <a href="#" className="social-link" title="LinkedIn">
-                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                </svg>
-              </a>
+              {profile.facebook_url && (
+                <a href={profile.facebook_url} className="social-link" title="Facebook" target="_blank" rel="noopener noreferrer">
+                  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                  </svg>
+                </a>
+              )}
+              {profile.linkedin_url && (
+                <a href={profile.linkedin_url} className="social-link" title="LinkedIn" target="_blank" rel="noopener noreferrer">
+                  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                  </svg>
+                </a>
+              )}
+              {profile.tiktok_url && (
+                <a href={profile.tiktok_url} className="social-link" title="TikTok" target="_blank" rel="noopener noreferrer">
+                  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+                  </svg>
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -693,16 +715,16 @@ function UserProfilePage() {
           <div className="stat-number">{profile.likes_received || 0}</div>
           <div className="stat-label">Likes Received</div>
         </div>
-        <div 
-          className="stat-box clickable" 
+        <div
+          className="stat-box clickable"
           onClick={() => setActiveTab('followers')}
           style={{ cursor: 'pointer' }}
         >
           <div className="stat-number">{profile.followers_count || 0}</div>
           <div className="stat-label">Followers</div>
         </div>
-        <div 
-          className="stat-box clickable" 
+        <div
+          className="stat-box clickable"
           onClick={() => setActiveTab('following')}
           style={{ cursor: 'pointer' }}
         >
@@ -719,25 +741,24 @@ function UserProfilePage() {
           <div className="sidebar-card">
             <h3>About Me</h3>
             <p className="about-text">
-              Passionate about quality assurance and test automation. 
-              Love working with Python, Playwright, and building robust testing frameworks.
+              {profile.bio || 'No bio added yet.'}
             </p>
-            <div className="skills-list">
-              <span className="skill-tag">Python</span>
-              <span className="skill-tag">Playwright</span>
-              <span className="skill-tag">Django</span>
-              <span className="skill-tag">React</span>
-              <span className="skill-tag">CI/CD</span>
-            </div>
+            {profile.skills && profile.skills.trim() && (
+              <div className="skills-list">
+                {profile.skills.split(',').map((skill, index) => (
+                  <span key={index} className="skill-tag">{skill.trim()}</span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Member Since Card */}
           <div className="sidebar-card">
             <h3>Member Since</h3>
             <p className="joined-date">
-              {new Date(profile.date_joined).toLocaleDateString('en-US', { 
-                month: 'long', 
-                year: 'numeric' 
+              {new Date(profile.date_joined).toLocaleDateString('en-US', {
+                month: 'long',
+                year: 'numeric'
               })}
             </p>
             <div className="membership-duration">
@@ -745,39 +766,20 @@ function UserProfilePage() {
             </div>
           </div>
 
-          {/* Participation Stats Card */}
-          <div className="sidebar-card">
-            <h3>Forum Participation</h3>
-            <div className="participation-stats">
-              <div className="participation-row">
-                <span className="participation-label">Topics Started</span>
-                <span className="participation-value">{profile.topics_count || 102}</span>
-              </div>
-              <div className="participation-row">
-                <span className="participation-label">Replies Posted</span>
-                <span className="participation-value">{profile.replies_count || 345}</span>
-              </div>
-              <div className="participation-row">
-                <span className="participation-label">Reputation Points</span>
-                <span className="participation-value">{profile.points}</span>
-              </div>
-            </div>
-          </div>
-
           {/* Following / Followers Card */}
           <div className="sidebar-card">
             <h3>Social</h3>
             <div className="social-stats">
-              <div 
-                className="social-stat-link" 
+              <div
+                className="social-stat-link"
                 onClick={() => setActiveTab('following')}
                 style={{ cursor: 'pointer' }}
               >
                 <span className="social-stat-number">{profile.following_count || 0}</span>
                 <span className="social-stat-label">Following</span>
               </div>
-              <div 
-                className="social-stat-link" 
+              <div
+                className="social-stat-link"
                 onClick={() => setActiveTab('followers')}
                 style={{ cursor: 'pointer' }}
               >
@@ -798,18 +800,22 @@ function UserProfilePage() {
             >
               Topics
             </button>
-            <button
-              className={`profile-tab ${activeTab === 'following' ? 'active' : ''}`}
-              onClick={() => setActiveTab('following')}
-            >
-              Following
-            </button>
-            <button
-              className={`profile-tab ${activeTab === 'followers' ? 'active' : ''}`}
-              onClick={() => setActiveTab('followers')}
-            >
-              Followers
-            </button>
+            {isOwnProfile && (
+              <>
+                <button
+                  className={`profile-tab ${activeTab === 'following' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('following')}
+                >
+                  Following
+                </button>
+                <button
+                  className={`profile-tab ${activeTab === 'followers' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('followers')}
+                >
+                  Followers
+                </button>
+              </>
+            )}
             {isOwnProfile && (
               <>
                 <button
@@ -904,6 +910,20 @@ function UserProfilePage() {
                     {followingTopics.length > 0 ? (
                       followingTopics.map((topic) => (
                         <div key={topic.id} className="user-topic-card compact-horizontal">
+
+                          {/* Right side - Topic data */}
+                          <div className="topic-content-section">
+                            <Link to={`/topic/${topic.id}`} className="topic-link">
+                              <h3 className="user-topic-title">{topic.title}</h3>
+                            </Link>
+                            <div className="topic-meta-row">
+                              <span className="topic-category-tag">{topic.category_name}</span>
+                              <div className="user-topic-stats">
+                                <span className="topic-stat">👁 {topic.views}</span>
+                                <span className="topic-stat">💬 {topic.replies_count}</span>
+                              </div>
+                            </div>
+                          </div>
                           {/* Left side - User info */}
                           <div className="topic-user-section">
                             <Link to={`/profile/${topic.author.id}`} className="author-avatar">
@@ -922,20 +942,8 @@ function UserProfilePage() {
                               </span>
                             </div>
                           </div>
-                          
-                          {/* Right side - Topic data */}
-                          <div className="topic-content-section">
-                            <Link to={`/topic/${topic.id}`} className="topic-link">
-                              <h3 className="user-topic-title">{topic.title}</h3>
-                            </Link>
-                            <div className="topic-meta-row">
-                              <span className="topic-category-tag">{topic.category_name}</span>
-                              <div className="user-topic-stats">
-                                <span className="topic-stat">👁 {topic.views}</span>
-                                <span className="topic-stat">💬 {topic.replies_count}</span>
-                              </div>
-                            </div>
-                          </div>
+
+
                         </div>
                       ))
                     ) : (
@@ -1017,8 +1025,8 @@ function UserProfilePage() {
               <div className="replies-list">
                 {userReplies.length > 0 ? (
                   userReplies.map((reply) => (
-                    <div 
-                      key={reply.id} 
+                    <div
+                      key={reply.id}
                       className={`user-reply-card ${reply.resolved_report ? 'reported-reply' : ''}`}
                     >
                       {reply.resolved_report && (
@@ -1143,8 +1151,8 @@ function UserProfilePage() {
                         <div className="level-info">
                           <div className="level-icon-wrapper" style={{ backgroundColor: gamificationData.level_data?.current_level_color || '#3b82f6' }}>
                             {gamificationData.level_data?.current_level_image ? (
-                              <img 
-                                src={gamificationData.level_data.current_level_image} 
+                              <img
+                                src={gamificationData.level_data.current_level_image}
                                 alt={gamificationData.level_data.level_name}
                                 className="level-icon-image"
                               />
@@ -1161,8 +1169,8 @@ function UserProfilePage() {
                         </div>
                         <div className="leaderboard-position">
                           ⭐ Rank #{gamificationData.leaderboard_position || 'N/A'}
-                          <button 
-                            className="refresh-button" 
+                          <button
+                            className="refresh-button"
                             onClick={refreshGamificationData}
                             disabled={gamificationLoading}
                             title="Refresh gamification data"
@@ -1171,7 +1179,7 @@ function UserProfilePage() {
                           </button>
                         </div>
                       </div>
-                      
+
                       <div className="xp-section">
                         <div className="xp-text">
                           {gamificationData.level_data?.next_level_name ? (
@@ -1180,7 +1188,7 @@ function UserProfilePage() {
                               <span className="xp-divider">/</span>
                               <span className="required-xp">{((gamificationData.level_data?.current_xp || 0) + (gamificationData.level_data?.xp_to_next_level || 0)).toLocaleString()} XP</span>
                               <span className="next-level-info">
-                                to reach Level {gamificationData.level_data?.next_level_number} 
+                                to reach Level {gamificationData.level_data?.next_level_number}
                                 <span className="next-level-icon">{gamificationData.level_data?.next_level_icon}</span>
                                 {gamificationData.level_data?.next_level_name}
                               </span>
@@ -1190,9 +1198,9 @@ function UserProfilePage() {
                           )}
                         </div>
                         <div className="xp-progress-bar">
-                          <div 
-                            className="xp-progress-fill" 
-                            style={{ 
+                          <div
+                            className="xp-progress-fill"
+                            style={{
                               width: `${xpPercentage}%`,
                               backgroundColor: gamificationData.level_data?.current_level_color || '#3b82f6'
                             }}
@@ -1234,7 +1242,7 @@ function UserProfilePage() {
                             </div>
                             <div className="badge-icon-large">{badge.icon}</div>
                             <h4 className="badge-name">{badge.name}</h4>
-                            
+
                             {badge.unlocked ? (
                               <div className="badge-unlocked-info">
                                 <p className="badge-earned">Earned: {badge.earned_date}</p>
@@ -1248,8 +1256,8 @@ function UserProfilePage() {
                                     {badge.progress}/{badge.required_count}
                                   </div>
                                   <div className="progress-bar-small">
-                                    <div 
-                                      className="progress-fill-small" 
+                                    <div
+                                      className="progress-fill-small"
                                       style={{ width: `${(badge.progress / badge.required_count) * 100}%` }}
                                     ></div>
                                   </div>
@@ -1276,7 +1284,7 @@ function UserProfilePage() {
                   <div className="badge-modal-overlay" onClick={closeBadgeModal}>
                     <div className="badge-modal" onClick={(e) => e.stopPropagation()}>
                       <button className="modal-close-btn" onClick={closeBadgeModal}>✕</button>
-                      
+
                       <div className="modal-header">
                         <div className="modal-badge-icon">{selectedBadge.icon}</div>
                         <h2>{selectedBadge.name}</h2>
@@ -1284,7 +1292,7 @@ function UserProfilePage() {
 
                       <div className="modal-body">
                         <p className="modal-description">{selectedBadge.description}</p>
-                        
+
                         {selectedBadge.unlocked ? (
                           <div className="modal-unlocked">
                             <p className="earned-date">✅ Earned: {selectedBadge.earned_date}</p>
@@ -1301,15 +1309,15 @@ function UserProfilePage() {
                             <div className="requirement-item">
                               {selectedBadge.requirement}
                             </div>
-                            
+
                             <div className="progress-section">
                               <div className="progress-header">
                                 <span>Progress</span>
                                 <span>{selectedBadge.progress} / {selectedBadge.required_count}</span>
                               </div>
                               <div className="progress-bar-modal">
-                                <div 
-                                  className="progress-fill-modal" 
+                                <div
+                                  className="progress-fill-modal"
                                   style={{ width: `${(selectedBadge.progress / selectedBadge.required_count) * 100}%` }}
                                 ></div>
                               </div>
@@ -1337,8 +1345,8 @@ function UserProfilePage() {
                     <div className="form-row">
                       <div className="form-group">
                         <label>First Name</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           name="firstName"
                           value={settingsData.firstName}
                           onChange={handleSettingsChange}
@@ -1350,8 +1358,8 @@ function UserProfilePage() {
                       </div>
                       <div className="form-group">
                         <label>Last Name</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           name="lastName"
                           value={settingsData.lastName}
                           onChange={handleSettingsChange}
@@ -1364,8 +1372,8 @@ function UserProfilePage() {
                     </div>
                     <div className="form-group">
                       <label>Username</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={profile?.username || ''}
                         disabled
                         className="disabled-input"
@@ -1374,8 +1382,8 @@ function UserProfilePage() {
                     </div>
                     <div className="form-group">
                       <label>Email</label>
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         value={profile?.email || ''}
                         disabled
                         className="disabled-input"
@@ -1384,8 +1392,8 @@ function UserProfilePage() {
                     </div>
                     <div className="form-group">
                       <label>Bio</label>
-                      <textarea 
-                        rows="4" 
+                      <textarea
+                        rows="4"
                         name="bio"
                         value={settingsData.bio}
                         onChange={handleSettingsChange}
@@ -1398,10 +1406,69 @@ function UserProfilePage() {
                         </small>
                       </div>
                     </div>
+
+                    <div className="form-group">
+                      <label>Skills</label>
+                      <input
+                        type="text"
+                        name="skills"
+                        value={settingsData.skills}
+                        onChange={handleSettingsChange}
+                        placeholder="Enter skills separated by commas (e.g., Python, Django, React)"
+                      />
+                      <small className="field-hint">
+                        Separate multiple skills with commas
+                      </small>
+                      {profileErrors.skills && (
+                        <small className="field-error">{profileErrors.skills}</small>
+                      )}
+                    </div>
+                    
+                    {/* Social Media Links */}
+                    <div className="form-group">
+                      <label>Facebook URL</label>
+                      <input
+                        type="url"
+                        name="facebookUrl"
+                        value={settingsData.facebookUrl}
+                        onChange={handleSettingsChange}
+                        placeholder="https://facebook.com/yourprofile"
+                      />
+                      {profileErrors.facebookUrl && (
+                        <small className="field-error">{profileErrors.facebookUrl}</small>
+                      )}
+                    </div>
+                    <div className="form-group">
+                      <label>LinkedIn URL</label>
+                      <input
+                        type="url"
+                        name="linkedinUrl"
+                        value={settingsData.linkedinUrl}
+                        onChange={handleSettingsChange}
+                        placeholder="https://linkedin.com/in/yourprofile"
+                      />
+                      {profileErrors.linkedinUrl && (
+                        <small className="field-error">{profileErrors.linkedinUrl}</small>
+                      )}
+                    </div>
+                    <div className="form-group">
+                      <label>TikTok URL</label>
+                      <input
+                        type="url"
+                        name="tiktokUrl"
+                        value={settingsData.tiktokUrl}
+                        onChange={handleSettingsChange}
+                        placeholder="https://tiktok.com/@yourprofile"
+                      />
+                      {profileErrors.tiktokUrl && (
+                        <small className="field-error">{profileErrors.tiktokUrl}</small>
+                      )}
+                    </div>
+                    
                     {profileErrors.general && (
                       <div className="error-message">{profileErrors.general}</div>
                     )}
-                    <button 
+                    <button
                       className="save-btn primary-btn"
                       onClick={handleSaveProfile}
                       disabled={savingProfile}
@@ -1417,8 +1484,8 @@ function UserProfilePage() {
                   <div className="settings-card">
                     <div className="form-group">
                       <label>Current Password</label>
-                      <input 
-                        type="password" 
+                      <input
+                        type="password"
                         name="currentPassword"
                         value={passwordData.currentPassword}
                         onChange={handlePasswordChange}
@@ -1433,8 +1500,8 @@ function UserProfilePage() {
                     </div>
                     <div className="form-group">
                       <label>New Password</label>
-                      <input 
-                        type="password" 
+                      <input
+                        type="password"
                         name="newPassword"
                         value={passwordData.newPassword}
                         onChange={handlePasswordChange}
@@ -1452,8 +1519,8 @@ function UserProfilePage() {
                     </div>
                     <div className="form-group">
                       <label>Confirm New Password</label>
-                      <input 
-                        type="password" 
+                      <input
+                        type="password"
                         name="confirmPassword"
                         value={passwordData.confirmPassword}
                         onChange={handlePasswordChange}
@@ -1469,7 +1536,7 @@ function UserProfilePage() {
                     {passwordErrors.general && (
                       <div className="error-message">{passwordErrors.general}</div>
                     )}
-                    <button 
+                    <button
                       className="save-btn primary-btn"
                       onClick={handleSavePassword}
                       disabled={savingPassword}

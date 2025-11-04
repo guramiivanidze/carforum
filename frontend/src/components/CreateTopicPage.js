@@ -13,13 +13,12 @@ import '../styles/CreateTopicPage.css';
 function CreateTopicPage() {
   const navigate = useNavigate();
   const { id } = useParams(); // For edit mode
-  const { isAuthenticated, user, profile, loading: authLoading } = useAuth();
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const fileInputRef = useRef(null);
   
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const isEditMode = Boolean(id);
   
   // Form state

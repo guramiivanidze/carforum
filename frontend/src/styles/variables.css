@@ -1,0 +1,287 @@
+/**
+ * CSS Variables (Design Tokens)
+ * 
+ * Centralized design system with consistent colors, spacing, typography,
+ * shadows, and transitions. Import this file in components that need access
+ * to design tokens.
+ * 
+ * Usage:
+ * - Colors: var(--color-primary), var(--color-background)
+ * - Spacing: var(--spacing-md), var(--spacing-xl)
+ * - Typography: var(--font-size-base), var(--font-weight-bold)
+ * - Shadows: var(--shadow-sm), var(--shadow-md)
+ * - Transitions: var(--transition-fast), var(--transition-normal)
+ * 
+ * Benefits:
+ * - Consistent design across all components
+ * - Easy theme changes (update once, applies everywhere)
+ * - Better maintainability
+ * - Automatic dark mode support (future)
+ */
+
+:root {
+  /* ========================================================================
+     COLOR PALETTE
+     ======================================================================== */
+  
+  /* Primary Colors - Brand */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-light: #3b82f6;
+  --color-primary-dark: #1e40af;
+  --color-primary-bg: #eff6ff;
+  
+  /* Secondary Colors */
+  --color-secondary: #64748b;
+  --color-secondary-hover: #475569;
+  --color-secondary-light: #94a3b8;
+  --color-secondary-dark: #334155;
+  
+  /* Success Colors */
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-success-light: #d1fae5;
+  --color-success-dark: #047857;
+  
+  /* Warning Colors */
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-warning-light: #fef3c7;
+  --color-warning-dark: #b45309;
+  
+  /* Error/Danger Colors */
+  --color-error: #ef4444;
+  --color-error-hover: #dc2626;
+  --color-error-light: #fee2e2;
+  --color-error-dark: #b91c1c;
+  
+  /* Info Colors */
+  --color-info: #3b82f6;
+  --color-info-hover: #2563eb;
+  --color-info-light: #dbeafe;
+  --color-info-dark: #1e40af;
+  
+  /* Neutral/Gray Scale */
+  --color-white: #ffffff;
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+  --color-black: #000000;
+  
+  /* Semantic Colors */
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #6b7280;
+  --color-text-tertiary: #9ca3af;
+  --color-text-inverse: #ffffff;
+  --color-text-link: #2563eb;
+  --color-text-link-hover: #1d4ed8;
+  
+  /* Background Colors */
+  --color-background: #f8f9fa;
+  --color-background-alt: #ffffff;
+  --color-background-elevated: #ffffff;
+  --color-background-overlay: rgba(0, 0, 0, 0.5);
+  
+  /* Border Colors */
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+  --color-border-dark: #cbd5e1;
+  --color-border-focus: #2563eb;
+  
+  /* ========================================================================
+     SPACING SYSTEM (8px base)
+     ======================================================================== */
+  
+  --spacing-xs: 0.25rem;   /* 4px */
+  --spacing-sm: 0.5rem;    /* 8px */
+  --spacing-md: 1rem;      /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  --spacing-2xl: 3rem;     /* 48px */
+  --spacing-3xl: 4rem;     /* 64px */
+  --spacing-4xl: 6rem;     /* 96px */
+  
+  /* ========================================================================
+     TYPOGRAPHY
+     ======================================================================== */
+  
+  /* Font Families */
+  --font-family-base: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 
+                      'Segoe UI', sans-serif;
+  --font-family-heading: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 
+                         'Segoe UI', sans-serif;
+  --font-family-mono: 'Fira Code', 'Courier New', Consolas, Monaco, monospace;
+  
+  /* Font Sizes */
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-md: 1.125rem;   /* 18px */
+  --font-size-lg: 1.25rem;    /* 20px */
+  --font-size-xl: 1.5rem;     /* 24px */
+  --font-size-2xl: 2rem;      /* 32px */
+  --font-size-3xl: 2.5rem;    /* 40px */
+  --font-size-4xl: 3rem;      /* 48px */
+  
+  /* Font Weights */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  --line-height-loose: 2;
+  
+  /* Letter Spacing */
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;
+  
+  /* ========================================================================
+     SHADOWS
+     ======================================================================== */
+  
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.15);
+  --shadow-2xl: 0 24px 48px rgba(0, 0, 0, 0.2);
+  --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+  
+  /* Colored Shadows */
+  --shadow-primary: 0 4px 12px rgba(37, 99, 235, 0.2);
+  --shadow-success: 0 4px 12px rgba(16, 185, 129, 0.2);
+  --shadow-error: 0 4px 12px rgba(239, 68, 68, 0.2);
+  --shadow-warning: 0 4px 12px rgba(245, 158, 11, 0.2);
+  
+  /* ========================================================================
+     BORDER RADIUS
+     ======================================================================== */
+  
+  --radius-none: 0;
+  --radius-sm: 0.25rem;    /* 4px */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 0.75rem;    /* 12px */
+  --radius-xl: 1rem;       /* 16px */
+  --radius-2xl: 1.5rem;    /* 24px */
+  --radius-full: 9999px;   /* Circular */
+  
+  /* ========================================================================
+     TRANSITIONS & ANIMATIONS
+     ======================================================================== */
+  
+  /* Transition Durations */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 350ms;
+  --duration-slower: 500ms;
+  
+  /* Transition Timing Functions */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* Combined Transitions (duration + timing) */
+  --transition-fast: var(--duration-fast) var(--ease-out);
+  --transition-normal: var(--duration-normal) var(--ease-out);
+  --transition-slow: var(--duration-slow) var(--ease-out);
+  --transition-all: all var(--duration-normal) var(--ease-out);
+  
+  /* ========================================================================
+     Z-INDEX SCALE
+     ======================================================================== */
+  
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+  
+  /* ========================================================================
+     BREAKPOINTS (for reference in JS)
+     ======================================================================== */
+  
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  
+  /* ========================================================================
+     LAYOUT & CONTAINER
+     ======================================================================== */
+  
+  --container-max-width: 1400px;
+  --container-padding: var(--spacing-lg);
+  --sidebar-width: 280px;
+  --header-height: 64px;
+  
+  /* ========================================================================
+     MISC
+     ======================================================================== */
+  
+  --blur-sm: 8px;
+  --blur-md: 12px;
+  --blur-lg: 16px;
+  --blur-xl: 24px;
+  
+  --opacity-disabled: 0.5;
+  --opacity-hover: 0.8;
+  --opacity-loading: 0.6;
+}
+
+/* ========================================================================
+   DARK MODE VARIABLES (Optional - for future implementation)
+   ======================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Update colors for dark mode */
+    --color-background: #1f2937;
+    --color-background-alt: #111827;
+    --color-background-elevated: #374151;
+    --color-text-primary: #f9fafb;
+    --color-text-secondary: #d1d5db;
+    --color-text-tertiary: #9ca3af;
+    --color-border: #374151;
+    --color-border-light: #4b5563;
+    --color-border-dark: #1f2937;
+  }
+}
+
+/* Force light mode by default (remove when dark mode is ready) */
+:root[data-theme="light"],
+:root:not([data-theme]) {
+  /* Light mode is default, defined above */
+}
+
+/* Dark mode class (for manual toggle) */
+:root[data-theme="dark"] {
+  --color-background: #1f2937;
+  --color-background-alt: #111827;
+  --color-background-elevated: #374151;
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #d1d5db;
+  --color-text-tertiary: #9ca3af;
+  --color-border: #374151;
+  --color-border-light: #4b5563;
+  --color-border-dark: #1f2937;
+}

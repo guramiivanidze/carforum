@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../context/AuthContext';
 import { getTopic, getRelatedTopics, createReply, likeTopic, likeReply, deleteReply, bookmarkTopic, votePoll } from '../services/api';
 import ReportModal from './ReportModal';
@@ -561,31 +560,6 @@ function TopicDetailPage() {
 
   return (
     <div className="topic-detail-page">
-      {/* SEO Meta Tags */}
-      {console.log('Rendering Helmet with:', topic.meta_title, topic.meta_description, topic.keywords)}
-      <Helmet>
-        <title>{topic.meta_title || topic.title}</title>
-        <meta name="description" content={topic.meta_description || topic.content?.substring(0, 160)} />
-        <meta name="keywords" content={topic.keywords || topic.tags?.join(', ')} />
-        
-        {/* Open Graph / Facebook */}
-        <meta property="og:type" content="article" />
-        <meta property="og:title" content={topic.meta_title || topic.title} />
-        <meta property="og:description" content={topic.meta_description || topic.content?.substring(0, 160)} />
-        <meta property="og:url" content={window.location.href} />
-        {topic.images && topic.images.length > 0 && (
-          <meta property="og:image" content={topic.images[0].image_url} />
-        )}
-        
-        {/* Twitter */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={topic.meta_title || topic.title} />
-        <meta name="twitter:description" content={topic.meta_description || topic.content?.substring(0, 160)} />
-        {topic.images && topic.images.length > 0 && (
-          <meta name="twitter:image" content={topic.images[0].image_url} />
-        )}
-      </Helmet>
-      
       {/* Breadcrumb */}
       <div className="breadcrumb">
         <Link to="/">Home</Link>

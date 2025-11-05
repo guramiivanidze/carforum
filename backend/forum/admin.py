@@ -33,7 +33,7 @@ class TopicResource(resources.ModelResource):
     class Meta:
         model = Topic
         import_id_fields = ['id']
-        fields = ('id', 'title', 'meta_title', 'meta_description', 'keywords', 'content', 'author__username', 'category__title', 'views', 'created_at', 'updated_at')
+        fields = ('id', 'title', 'content', 'author__username', 'category__title', 'views', 'created_at', 'updated_at')
 
 
 class ReplyResource(resources.ModelResource):
@@ -136,19 +136,14 @@ class TagAdmin(ImportExportModelAdmin):
 @admin.register(Topic)
 class TopicAdmin(ImportExportModelAdmin):
     resource_class = TopicResource
-    list_display = ['title', 'author', 'category', 'replies_count', 'likes_count', 'views', 'created_at', 'updated_at', 'meta_title']
+    list_display = ['title', 'author', 'category', 'replies_count', 'likes_count', 'views', 'created_at', 'updated_at']
     list_filter = ['category', 'created_at']
-    search_fields = ['title', 'content', 'author__username', 'meta_title', 'meta_description']
+    search_fields = ['title', 'content', 'author__username']
     readonly_fields = ['views', 'created_at', 'updated_at', 'likes_list']
     filter_horizontal = ['likes']
     fieldsets = (
         (None, {
             'fields': ('title', 'author', 'category', 'content', 'tags')
-        }),
-        ('SEO', {
-            'classes': ('collapse',),
-            'fields': ('meta_title', 'meta_description', 'keywords'),
-            'description': 'Set SEO meta title, description and keywords. If left empty they will be auto-generated.'
         }),
     )
     

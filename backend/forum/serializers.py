@@ -200,8 +200,7 @@ class TopicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topic
         fields = ['id', 'title', 'author', 'category', 'category_name', 
-                  'content', 'tags', 'tag_ids', 'replies_count', 'views', 'images', 'poll', 'created_at', 'updated_at',
-                  'meta_title', 'meta_description', 'keywords']
+                  'content', 'tags', 'tag_ids', 'replies_count', 'views', 'images', 'poll', 'created_at', 'updated_at']
         read_only_fields = ['author', 'views']
     
     def get_author(self, obj):
@@ -229,8 +228,7 @@ class TopicDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topic
         fields = ['id', 'title', 'author', 'category', 'content', 'tags',
-                  'replies', 'replies_count', 'likes_count', 'user_has_liked', 'views', 'images', 'poll', 'created_at', 'updated_at', 'user_has_bookmarked', 'bookmarks_count',
-                  'meta_title', 'meta_description', 'keywords']
+                  'replies', 'replies_count', 'likes_count', 'user_has_liked', 'views', 'images', 'poll', 'created_at', 'updated_at', 'user_has_bookmarked', 'bookmarks_count']
     
     def get_author(self, obj):
         """Serialize author with context"""

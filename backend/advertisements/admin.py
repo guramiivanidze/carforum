@@ -1,10 +1,25 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
 from .models import AdBanner
 
 
+# Resource for import/export
+class AdBannerResource(resources.ModelResource):
+    class Meta:
+        model = AdBanner
+        import_id_fields = ['id']
+        fields = (
+            'id', 'title', 'is_active', 'image', 'video', 
+            'link_url', 'alt_text', 'locations', 'size',
+            'impressions', 'clicks', 'created_at', 'updated_at'
+        )
+
+
 @admin.register(AdBanner)
-class AdBannerAdmin(admin.ModelAdmin):
+class AdBannerAdmin(ImportExportModelAdmin):
+    resource_class = AdBannerResource
     list_display = [
         'title',
         'is_active',

@@ -20,7 +20,7 @@
 .ad-banner-image,
 .ad-banner-video {
   width: 100%;
-  height: 100%;
+  height: auto;
   max-width: 100%;
   object-fit: cover;
   display: block;
@@ -77,15 +77,14 @@
 /* Small - Sidebar banners */
 .ad-banner-small {
   margin: 1rem 0;
-  min-height: 120px;
-  max-height: 120px;
+  height: 120px;
   width: 100%;
 }
 
 .ad-banner-small .ad-banner-image,
 .ad-banner-small .ad-banner-video {
   object-fit: contain;
-  max-height: 120px;
+  height: 100%;
 }
 
 .ad-banner-small .ad-icon {
@@ -99,13 +98,23 @@
 /* Medium - Section separators */
 .ad-banner-medium {
   margin: 2rem 0;
-  min-height: 150px;
+  height: 150px;
+}
+
+.ad-banner-medium .ad-banner-image,
+.ad-banner-medium .ad-banner-video {
+  height: 100%;
 }
 
 /* Large - Between major sections */
 .ad-banner-large {
   margin: 2.5rem 0;
-  min-height: 200px;
+  height: 200px;
+}
+
+.ad-banner-large .ad-banner-image,
+.ad-banner-large .ad-banner-video {
+  height: 100%;
 }
 
 .ad-banner-large .ad-banner-content {
@@ -124,41 +133,51 @@
 /* Card size - Fits within grids */
 .ad-banner-card {
   margin: 0;
-  min-height: 250px;
+  height: 250px;
   display: flex;
   flex-direction: column;
+}
+
+.ad-banner-card .ad-banner-image,
+.ad-banner-card .ad-banner-video {
+  height: 100%;
 }
 
 /* Row size - Fits in topic/reply lists */
 .ad-banner-row {
   margin: 0.75rem 0;
-  min-height: 100px;
+  height: 100px;
+}
+
+.ad-banner-row .ad-banner-image,
+.ad-banner-row .ad-banner-video {
+  height: 100%;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .ad-banner-large {
     margin: 1.5rem 0;
-    min-height: 150px;
+    height: 150px;
   }
 
   .ad-banner-medium {
     margin: 1.25rem 0;
-    min-height: 120px;
+    height: 120px;
   }
 
   .ad-banner-row {
-    min-height: 90px;
+    height: 90px;
   }
 }
 
 @media (max-width: 480px) {
   .ad-banner-card {
-    min-height: 200px;
+    height: 200px;
   }
   
   .ad-banner-small {
-    min-height: 100px;
+    height: 100px;
   }
 }
 

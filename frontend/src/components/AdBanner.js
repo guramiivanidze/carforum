@@ -25,15 +25,15 @@ function AdBanner({ location, size = 'medium', className = '' }) {
     }
   };
 
-  // If no location specified or no banner found, show nothing
-  if (!location || (!loading && !banner)) {
+  // If no location specified, don't render anything
+  if (!location) {
     return null;
   }
 
-  // Show loading state
-  if (loading) {
+  // Always show placeholder to prevent layout shift
+  if (loading || !banner) {
     return (
-      <div className={`ad-banner ad-banner-${size} ${className}`}>
+      <div className={`ad-banner ad-banner-${size} ${className}`} style={{ visibility: loading ? 'visible' : 'hidden' }}>
         <div className="ad-banner-content ad-banner-loading">
           <span className="ad-label">Advertisement</span>
           <div className="ad-placeholder">

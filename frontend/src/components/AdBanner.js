@@ -6,6 +6,7 @@ function AdBanner({ location, size = 'medium', className = '' }) {
   const { getBannerForLocation, trackImpression, trackClick, loading } = useBanners();
   const banner = getBannerForLocation(location);
 
+
   useEffect(() => {
     // Track impression when banner is loaded and visible
     if (banner) {
@@ -30,16 +31,27 @@ function AdBanner({ location, size = 'medium', className = '' }) {
     return null;
   }
 
-  // Always show placeholder to prevent layout shift
-  if (loading || !banner) {
+  // Show loading placeholder while loading
+  if (loading) {
     return (
-      <div className={`ad-banner ad-banner-${size} ${className}`} style={{ visibility: loading ? 'visible' : 'hidden' }}>
+      <div className={`ad-banner ad-banner-${size} ${className}`}>
         <div className="ad-banner-content ad-banner-loading">
           <span className="ad-label">Advertisement</span>
           <div className="ad-placeholder">
             <span className="ad-icon">⏳</span>
             <p>Loading...</p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If no banner after loading, show hidden placeholder to prevent layout shift
+  if (!banner) {
+    return (
+      <div className={`ad-banner ad-banner-${size} ${className}`} style={{ visibility: 'hidden' }}>
+        <div className="ad-banner-content">
+          <span>No ad</span>
         </div>
       </div>
     );

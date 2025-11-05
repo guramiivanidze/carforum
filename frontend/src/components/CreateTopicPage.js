@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getCategories, createTopic, getTopic, updateTopic, getPopularTags } from '../services/api';
+import { useCategories } from '../context/CategoriesContext';
+import { createTopic, getTopic, updateTopic, getPopularTags } from '../services/api';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -14,9 +15,9 @@ function CreateTopicPage() {
   const navigate = useNavigate();
   const { id } = useParams(); // For edit mode
   const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const { categories } = useCategories();
   const fileInputRef = useRef(null);
   
-  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const isEditMode = Boolean(id);
@@ -94,13 +95,8 @@ function CreateTopicPage() {
           return;
         }
 
-        // Fetch categories and tags
-        const [categoriesData, tagsData] = await Promise.all([
-          getCategories(),
-          getPopularTags()
-        ]);
-        
-        setCategories(categoriesData.results || categoriesData);
+        // Fetch tags only (categories come from context)
+        const tagsData = await getPopularTags();
         setAvailableTags(tagsData.map(tag => tag.name));
 
         // If edit mode, fetch topic data
@@ -120,7 +116,8 @@ function CreateTopicPage() {
             tags: topicData.tags || []
           });
           
-          const category = (categoriesData.results || categoriesData).find(cat => cat.id === (topicData.category.id || topicData.category));
+          // Find the category from context
+          const category = categories.find(cat => cat.id === (topicData.category.id || topicData.category));
           setSelectedCategory(category);
 
           // Load existing images

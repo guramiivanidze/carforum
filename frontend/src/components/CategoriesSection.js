@@ -9,7 +9,7 @@ function CategoriesSection({ categories, loading }) {
     navigate(`/category/${categoryId}`);
   };
 
-  if (loading) {
+  if (loading || !categories) {
     return (
       <section className="categories-section">
         <h2>Categories</h2>
@@ -18,9 +18,12 @@ function CategoriesSection({ categories, loading }) {
     );
   }
 
+  // Ensure categories is an array
+  const categoriesArray = Array.isArray(categories) ? categories : [];
+
   // Insert ad banner after 3rd category
   const categoriesWithAd = [];
-  categories.forEach((category, index) => {
+  categoriesArray.forEach((category, index) => {
     categoriesWithAd.push(
       <div 
         key={category.id} 

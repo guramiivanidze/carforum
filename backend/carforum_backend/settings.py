@@ -27,11 +27,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config(
-    'SECRET_KEY', default='django-insecure-!!6cbbgu2u4&j_((j_jr&jkm1gs9x80%mdxt^u!c(c&dlo-vme')
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
+
+# Validate that SECRET_KEY is not the default insecure value in production
+if not DEBUG:
+    default_key = 'django-insecure-!!6cbbgu2u4&j_((j_jr&jkm1gs9x80%mdxt^u!c(c&dlo-vme'
+    if SECRET_KEY == default_key:
+        raise ValueError("You must set a secure SECRET_KEY in production!")
 
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
@@ -221,6 +226,21 @@ else:
 
 CORS_ALLOW_CREDENTIALS = True
 
+# Allow custom headers for cache control
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'cache-control',
+    'pragma',
+]
+
 # Security settings for production
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
@@ -229,6 +249,30 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
+    
+    # Additional security headers
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Prevent browsers from guessing content types
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    
+    # Cookie security
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    
+    # Referrer policy
+    SECURE_REFERRER_POLICY = 'same-origin'
+    
+    # Proxy SSL header (for Render.com)
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+else:
+    # Development security settings
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
 
 # REST Framework settings
 REST_FRAMEWORK = {
@@ -240,12 +284,14 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'forum.pagination.CustomPageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
 }
 
 # JWT Settings
-
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # Shorter is more secure
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -264,4 +310,8 @@ SIMPLE_JWT = {
 
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
+    
+    # Additional security
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+    'JTI_CLAIM': 'jti',  # Unique identifier for token tracking
 }

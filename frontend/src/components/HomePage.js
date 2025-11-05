@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getCategories, getTopics, getTopMembers } from '../services/api';
+import { getTopics, getTopMembers } from '../services/api';
+import { useCategories } from '../context/CategoriesContext';
 import HeroSection from './HeroSection';
 import CategoriesSection from './CategoriesSection';
 import TopicsSection from './TopicsSection';
@@ -7,7 +8,7 @@ import Sidebar from './Sidebar';
 import AdBanner from './AdBanner';
 
 function HomePage() {
-  const [categories, setCategories] = useState([]);
+  const { categories, loading: categoriesLoading } = useCategories();
   const [topics, setTopics] = useState([]);
   const [topMembers, setTopMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,14 +29,12 @@ function HomePage() {
         // Fetch fewer topics on mobile (5) vs desktop (10)
         const topicsLimit = isMobile ? 5 : 10;
         
-        const [categoriesData, topicsData, membersData] = await Promise.all([
-          getCategories(),
+        const [topicsData, membersData] = await Promise.all([
           getTopics({ page: 1, page_size: topicsLimit }),
           getTopMembers()
         ]);
         
         // Handle paginated responses - extract results array if paginated
-        setCategories(categoriesData.results || categoriesData);
         setTopics(topicsData.results || topicsData);
         setTopMembers(membersData.slice(0, 10)); // Top 10 members
         setLoading(false);
@@ -52,7 +51,7 @@ function HomePage() {
     <div className="main-container">
       <div className="main-content">
         <HeroSection />
-        <CategoriesSection categories={categories} loading={loading} />
+        <CategoriesSection categories={categories} loading={categoriesLoading} />
         
         {/* Ad Banner between Categories and Topics */}
         <AdBanner location="home_between_sections" />

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getTopics, getCategories, searchAll, getPopularTags } from '../services/api';
+import { getTopics, searchAll, getPopularTags } from '../services/api';
+import { useCategories } from '../context/CategoriesContext';
 import '../styles/SearchPage.css';
 
 function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchInputRef = useRef(null);
+  const { categories: allCategories } = useCategories();
 
   // State
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
@@ -15,7 +17,6 @@ function SearchPage() {
 
   // Data state
   const [allTopics, setAllTopics] = useState([]);
-  const [allCategories, setAllCategories] = useState([]);
   const [trendingTopics, setTrendingTopics] = useState([]);
   const [latestTopics, setLatestTopics] = useState([]);
   const [popularTags, setPopularTags] = useState([]);
@@ -68,18 +69,15 @@ function SearchPage() {
 
   const fetchInitialData = async () => {
     try {
-      const [topicsData, categoriesData, tagsData] = await Promise.all([
+      const [topicsData, tagsData] = await Promise.all([
         getTopics(),
-        getCategories(),
         getPopularTags()
       ]);
 
       // Handle paginated responses - extract results array if paginated
       const allTopicsArray = topicsData.results || topicsData;
-      const allCategoriesArray = categoriesData.results || categoriesData;
 
       setAllTopics(allTopicsArray);
-      setAllCategories(allCategoriesArray);
 
       // Calculate trending topics (high engagement recently)
       const trending = [...allTopicsArray]

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getCategories, getCategoryTopics, searchAll } from '../services/api';
+import { useCategories } from '../context/CategoriesContext';
+import { getCategoryTopics, searchAll } from '../services/api';
 import AdBanner from './AdBanner';
 import '../styles/CategoryPage.css';
 
@@ -9,6 +10,7 @@ function CategoryPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { categories, getCategoryById } = useCategories();
   const [category, setCategory] = useState(null);
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,15 +37,11 @@ function CategoryPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [categoriesData, topicsData] = await Promise.all([
-          getCategories(),
-          getCategoryTopics(id, { page: currentPage, page_size: itemsPerPage, ordering })
-        ]);
-        
-        // Handle paginated response - extract results array if paginated
-        const allCategories = categoriesData.results || categoriesData;
-        const currentCategory = allCategories.find(cat => cat.id === parseInt(id));
+        // Get category from context
+        const currentCategory = getCategoryById(id);
         setCategory(currentCategory);
+        
+        const topicsData = await getCategoryTopics(id, { page: currentPage, page_size: itemsPerPage, ordering });
         
         // Handle paginated response from backend
         const allTopics = topicsData.results || topicsData;

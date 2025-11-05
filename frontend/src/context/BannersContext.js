@@ -19,7 +19,7 @@ export const BannersProvider = ({ children }) => {
     // Fetch all active banners once
     const fetchAllBanners = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/advertisements/banners/');
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/advertisements/banners/`);
         const data = await response.json();
         
         // Handle paginated response (data.results) or plain array
@@ -53,7 +53,7 @@ export const BannersProvider = ({ children }) => {
     
     try {
       await fetch(
-        `http://localhost:8000/api/advertisements/banners/${bannerId}/track_impression/`,
+        `${process.env.REACT_APP_API_URL}/advertisements/banners/${bannerId}/track_impression/`,
         { method: 'POST' }
       );
       setImpressionTracked(prev => new Set([...prev, bannerId]));
@@ -65,7 +65,7 @@ export const BannersProvider = ({ children }) => {
   const trackClick = async (bannerId) => {
     try {
       await fetch(
-        `http://localhost:8000/api/advertisements/banners/${bannerId}/track_click/`,
+        `${process.env.REACT_APP_API_URL}/advertisements/banners/${bannerId}/track_click/`,
         { method: 'POST' }
       );
     } catch (error) {

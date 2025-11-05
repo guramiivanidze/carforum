@@ -24,6 +24,13 @@ function CategoryPage() {
   const [hasSearched, setHasSearched] = useState(false); // Track if search button was clicked
   const [ordering, setOrdering] = useState('-created_at'); // Default to newest first
 
+  // Helper function to strip HTML tags from content
+  const stripHtmlTags = (html) => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -469,7 +476,7 @@ function CategoryPage() {
                         <div className="topic-content">
                           <h3 className="topic-title-link">{topic.title}</h3>
                           <p className="topic-preview">
-                            {topic.content ? topic.content.substring(0, 100) + '...' : 'Click to read more...'}
+                            {topic.content ? stripHtmlTags(topic.content).substring(0, 100) + '...' : 'Click to read more...'}
                           </p>
                           <div className="topic-tags">
                             {topic.tags && topic.tags.length > 0 ? (

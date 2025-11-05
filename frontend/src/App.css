@@ -16,6 +16,10 @@ body {
   flex-direction: column;
 }
 
+.topic-sidebar {
+  max-width: 320px;
+}
+
 /* Header */
 /* Header Styles */
 .header {
@@ -237,6 +241,7 @@ body {
     opacity: 0;
     transform: translateY(-15px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -416,6 +421,7 @@ body {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -612,7 +618,7 @@ body {
 
 .categories-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, 1fr) !important;
   gap: 1.25rem;
 }
 
@@ -632,14 +638,12 @@ body {
   position: absolute;
   inset: -3px;
   border-radius: 20px;
-  background: linear-gradient(
-    60deg,
-    #667eea,
-    #764ba2,
-    #f093fb,
-    #4facfe,
-    #667eea
-  );
+  background: linear-gradient(60deg,
+      #667eea,
+      #764ba2,
+      #f093fb,
+      #4facfe,
+      #667eea);
   background-size: 400% 400%;
   animation: gradientRotate 6s ease infinite;
   z-index: -1;
@@ -649,9 +653,11 @@ body {
   0% {
     background-position: 0% 50%;
   }
+
   50% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0% 50%;
   }
@@ -766,7 +772,7 @@ body {
 
 .topics-list {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
 
@@ -841,6 +847,7 @@ body {
   flex-wrap: wrap;
   font-size: 0.85rem;
 }
+
 /* 
 .category-tag {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
@@ -874,76 +881,107 @@ body {
 }
 
 .sidebar-section h3 {
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
-  color: #1f2937;
+  font-size: 1.1rem;
+  margin-bottom: 1.25rem;
+  color: #1e293b;
+  font-weight: 700;
 }
 
 .popular-topic {
-  padding: 0.75rem 0;
+  padding: 0.875rem 0;
   border-bottom: 1px solid #f3f4f6;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .popular-topic:last-child {
   border-bottom: none;
+  padding-bottom: 0;
 }
 
 .popular-topic:hover {
-  color: #2563eb;
+  padding-left: 0.5rem;
 }
 
 .popular-topic-title {
   font-size: 0.95rem;
-  color: #374151;
-  margin-bottom: 0.25rem;
+  color: #1e293b;
+  margin-bottom: 0.4rem;
+  font-weight: 500;
+  line-height: 1.4;
+  transition: color 0.2s ease;
+}
+
+.popular-topic:hover .popular-topic-title {
+  color: #2563eb;
 }
 
 .popular-topic-stats {
   font-size: 0.85rem;
-  color: #9ca3af;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .top-member {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0;
+  gap: 0.875rem;
+  padding: 0.875rem 0;
   border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .top-member:last-child {
   border-bottom: none;
+  padding-bottom: 0;
+}
+
+.top-member:hover {
+  padding-left: 0.5rem;
 }
 
 .member-badge {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .member-badge.purple {
   background-color: #a855f7;
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
 }
 
 .member-badge.blue {
   background-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .member-info {
   flex: 1;
+  min-width: 0;
 }
 
 .member-name {
-  font-weight: 500;
-  color: #374151;
+  font-weight: 600;
+  color: #1e293b;
   font-size: 0.95rem;
+  margin-bottom: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-member:hover .member-name {
+  color: #2563eb;
 }
 
 .member-points {
-  color: #9ca3af;
-  font-size: 0.85rem;
+  color: #64748b;
+  font-size: 0.8rem;
 }
 
 .new-topic-btn {
@@ -1018,276 +1056,279 @@ body {
   .sidebar {
     display: none;
   }
-  
+
   .main-container {
     padding: 1rem;
   }
 }
 
 @media (max-width: 768px) {
+
   /* Header - Mobile optimized */
   .header {
     padding: 0.5rem 1rem;
   }
-  
+
   .logo {
     font-size: 1.3rem;
   }
-  
+
   .logo-icon {
     font-size: 1.5rem;
   }
-  
+
   /* Show mobile controls, hide desktop nav */
   .mobile-controls {
     display: flex;
   }
-  
+
   .mobile-user-menu .user-menu-button {
     padding: 0.4rem;
     border: none;
     box-shadow: none;
     background: transparent;
   }
-  
+
   .mobile-user-menu .user-menu-button:hover {
     background: transparent;
   }
-  
+
   .mobile-user-menu .user-image-wrapper {
     width: 38px;
     height: 38px;
   }
-  
+
   .mobile-user-menu .user-image-icon {
     font-size: 1.4rem;
     display: flex;
     align-items: center;
     justify-content: center;
   }
-  
+
   .mobile-login-btn {
     padding: 0.5rem 0.85rem;
     min-width: auto;
     gap: 0.4rem;
   }
-  
+
   .mobile-login-btn span:first-child {
     font-size: 1.1rem;
   }
-  
+
   .mobile-login-btn span:last-child {
     font-size: 0.9rem;
   }
-  
+
   .mobile-menu-btn {
     display: block;
   }
-  
+
   .desktop-nav {
     display: none;
   }
-  
+
   .mobile-nav,
   .mobile-nav-overlay {
     display: block;
   }
-  
+
   /* Hero Section - Mobile optimized */
   .hero-section {
     padding: 1.5rem;
     margin-bottom: 1.5rem;
   }
-  
+
   .hero-section h1 {
     font-size: 1.5rem;
     margin-bottom: 0.5rem;
   }
-  
+
   .hero-section p {
     font-size: 0.95rem;
     margin-bottom: 1rem;
   }
-  
+
   .create-post-btn {
     padding: 0.6rem 1.2rem;
     font-size: 0.9rem;
     width: 100%;
     text-align: center;
   }
-  
+
   /* Categories - More compact */
   .categories-section {
     margin-bottom: 2rem;
   }
-  
+
   .categories-section h2 {
     font-size: 1.3rem;
     margin-bottom: 1rem;
   }
-  
+
   .categories-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
     gap: 1rem;
   }
-  
+
   .category-card {
     padding: 1.5rem;
     border-radius: 16px;
   }
-  
+
   .category-header {
     margin-bottom: 0.875rem;
   }
-  
+
   .category-icon-wrapper {
     width: 50px;
     height: 50px;
   }
-  
+
   .category-icon {
     font-size: 1.5rem;
   }
-  
+
   .category-card h3 {
     font-size: 1.05rem;
   }
-  
+
   .category-card p {
     font-size: 0.85rem;
     margin-bottom: 0.875rem;
   }
-  
+
   .category-stats {
     gap: 1rem;
     padding: 0.75rem;
   }
-  
+
   .category-stat-item {
     font-size: 0.8rem;
   }
-  
+
   /* Topics Section - Mobile optimized */
   .topics-section {
     margin-bottom: 2rem;
   }
-  
+
   .topics-section h2 {
     font-size: 1.3rem;
     margin-bottom: 1rem;
   }
-  
+
   .topics-list {
     grid-template-columns: 1fr;
   }
-  
+
   .topic-card {
     padding: 1rem;
     margin-bottom: 0.75rem;
   }
-  
+
   .topic-header {
     gap: 0.75rem;
   }
-  
+
   .topic-image {
     width: 40px;
     height: 40px;
     font-size: 1.2rem;
   }
-  
+
   .topic-title {
     font-size: 1rem;
   }
-  
+
   .topic-meta {
     gap: 0.5rem;
     font-size: 0.85rem;
   }
-/*   
+
+  /*   
   .category-tag {
     font-size: 0.75rem;
     padding: 0.2rem 0.6rem;
   } */
-  
+
   .topic-stats {
     font-size: 0.8rem;
   }
-  
+
   /* Footer - Mobile optimized */
   .footer {
     padding: 1.5rem 1rem;
   }
-  
+
   .footer-content {
     flex-direction: column;
     text-align: center;
     gap: 1.5rem;
   }
-  
+
   .footer-links {
     flex-direction: column;
     gap: 1rem;
     width: 100%;
   }
-  
+
   .footer-links a {
     font-size: 0.9rem;
   }
 }
 
 @media (max-width: 480px) {
+
   /* Extra small screens - even more compact */
   .main-container {
     padding: 0.75rem;
   }
-  
+
   .hero-section {
     padding: 1.25rem;
     border-radius: 8px;
   }
-  
+
   .hero-section h1 {
     font-size: 1.3rem;
   }
-  
+
   .hero-section p {
     font-size: 0.9rem;
   }
-  
+
   .categories-section h2,
   .topics-section h2 {
     font-size: 1.2rem;
   }
-  
+
   .category-card {
     padding: 1.25rem;
   }
-  
+
   .category-icon-wrapper {
     width: 48px;
     height: 48px;
     border-radius: 12px;
   }
-  
+
   .category-icon {
     font-size: 1.4rem;
   }
-  
+
   .category-card h3 {
     font-size: 1rem;
   }
-  
+
   .topic-card {
     padding: 0.875rem;
   }
-  
+
   .topic-image {
     width: 36px;
     height: 36px;
     font-size: 1.1rem;
   }
-  
+
   .topic-title {
     font-size: 0.95rem;
   }

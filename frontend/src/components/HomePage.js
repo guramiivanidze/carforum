@@ -4,6 +4,7 @@ import HeroSection from './HeroSection';
 import CategoriesSection from './CategoriesSection';
 import TopicsSection from './TopicsSection';
 import Sidebar from './Sidebar';
+import AdBanner from './AdBanner';
 
 function HomePage() {
   const [categories, setCategories] = useState([]);
@@ -52,6 +53,10 @@ function HomePage() {
       <div className="main-content">
         <HeroSection />
         <CategoriesSection categories={categories} loading={loading} />
+        
+        {/* Ad Banner between Categories and Topics */}
+        <AdBanner location="home_between_sections" />
+        
         <TopicsSection topics={topics} loading={loading} />
       </div>
       <Sidebar topics={topics} topMembers={topMembers} />

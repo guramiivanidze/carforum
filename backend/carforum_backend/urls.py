@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/', include('forum.urls')),
     path('api/auth/', include('forum.auth_urls')),
     path('api/gamification/', include('gamification.urls')),
+    path('api/advertisements/', include('advertisements.urls')),
 ]
 
 # Serve media files in development

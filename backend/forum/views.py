@@ -28,10 +28,32 @@ class CategoryViewSet(viewsets.ModelViewSet):
         """Get paginated topics for this category"""
         category = self.get_object()
         
-        # Get topics for this category, ordered by creation date (newest first)
+        # Get ordering parameter (default to newest first)
+        ordering = request.query_params.get('ordering', '-created_at')
+        
+        # Validate ordering parameter to prevent SQL injection
+        valid_orderings = {
+            '-created_at': '-created_at',  # Newest first (default)
+            'created_at': 'created_at',    # Oldest first
+            '-updated_at': '-updated_at',  # Recently updated
+            'updated_at': 'updated_at',    # Least recently updated
+            '-replies_count': '-num_replies',  # Most replies (use annotation)
+        }
+        
+        # Use default if invalid ordering is provided
+        if ordering not in valid_orderings:
+            ordering = '-created_at'
+        
+        # Get topics for this category with specified ordering
         topics = Topic.objects.filter(category=category).select_related(
             'author', 'author__profile', 'category'
-        ).order_by('-created_at')
+        )
+        
+        # Annotate num_replies for sorting by replies (can't use replies_count as it's a property)
+        if ordering == '-replies_count':
+            topics = topics.annotate(num_replies=Count('replies')).order_by(valid_orderings[ordering])
+        else:
+            topics = topics.order_by(valid_orderings[ordering])
         
         # Apply pagination
         paginator = CustomPageNumberPagination()

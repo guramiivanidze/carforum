@@ -10,6 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from datetime import timedelta
+import cloudinary.api
+import cloudinary.uploader
+import cloudinary
 from pathlib import Path
 from decouple import config
 import dj_database_url
@@ -23,19 +27,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-!!6cbbgu2u4&j_((j_jr&jkm1gs9x80%mdxt^u!c(c&dlo-vme')
+SECRET_KEY = config(
+    'SECRET_KEY', default='django-insecure-!!6cbbgu2u4&j_((j_jr&jkm1gs9x80%mdxt^u!c(c&dlo-vme')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+
+# Parse ALLOWED_HOSTS from env (comma-separated) and normalize values
+raw_allowed = config('ALLOWED_HOSTS', default='localhost,127.0.0.1')
+ALLOWED_HOSTS = [h.strip() for h in raw_allowed.split(',') if h.strip()]
+
+# Ensure common local hosts are present when debugging to avoid DisallowedHost
+if DEBUG:
+    for host in ('localhost', '127.0.0.1'):
+        if host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(host)
 
 # Allow Render.com domain in production
 if not DEBUG:
     RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
     if RENDER_EXTERNAL_HOSTNAME:
         ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-
 
 
 # Application definition
@@ -54,10 +69,14 @@ INSTALLED_APPS = [
     'corsheaders',
     'forum',
     'gamification',
+    'advertisements',
     'import_export',  # Django Import-Export
-    
+
     # 'django_extensions'  # Commented out - not installed
 ]
+
+if DEBUG:
+    INSTALLED_APPS.append('django_extensions')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -97,7 +116,11 @@ WSGI_APPLICATION = 'carforum_backend.wsgi.application'
 if not DEBUG:
     DATABASES = {
         'default': dj_database_url.config(
-            default=config('DATABASE_URL', default=str(BASE_DIR / 'db.sqlite3')),
+            # Ensure the default is a proper sqlite URL so dj_database_url won't
+            # try to parse a Windows path (which starts with a drive letter like 'C:')
+            # as a URL scheme. Example: sqlite:///C:/path/to/db.sqlite3
+            default=config(
+                'DATABASE_URL', default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
             conn_max_age=600,
             conn_health_checks=True,
         )
@@ -163,9 +186,6 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Cloudinary Configuration
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
 
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
@@ -189,10 +209,15 @@ DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000'
-).split(',')
+if DEBUG:
+    # Allow all origins in development for easier testing
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    # In production, only allow specific origins from env
+    CORS_ALLOWED_ORIGINS = config(
+        'CORS_ALLOWED_ORIGINS',
+        default='http://localhost:3000,http://127.0.0.1:3000'
+    ).split(',')
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -218,7 +243,6 @@ REST_FRAMEWORK = {
 }
 
 # JWT Settings
-from datetime import timedelta
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
@@ -226,18 +250,18 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
-    
+
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
     'VERIFYING_KEY': None,
     'AUDIENCE': None,
     'ISSUER': None,
-    
+
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
-    
+
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
 }

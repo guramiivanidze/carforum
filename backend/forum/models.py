@@ -2,6 +2,11 @@ from django.db import models
 from django.contrib.auth.models import User
 from cloudinary.models import CloudinaryField
 
+# Signals for SEO keyword population
+from django.db.models.signals import m2m_changed, pre_save
+from django.dispatch import receiver
+import re
+
 
 class Category(models.Model):
     """Forum categories"""
@@ -62,6 +67,10 @@ class Tag(models.Model):
 class Topic(models.Model):
     """Forum topics/posts"""
     title = models.CharField(max_length=200)
+    # SEO fields
+    meta_title = models.CharField(max_length=255, blank=True, help_text='Optional SEO title. If empty, the topic title will be used.')
+    meta_description = models.CharField(max_length=300, blank=True, help_text='Optional SEO description. If empty, an excerpt from content will be used.')
+    keywords = models.CharField(max_length=300, blank=True, help_text='Comma-separated keywords for SEO. If empty, tags will be used or title will be split into words.')
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='topics')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='topics')
     content = models.TextField(blank=True)
@@ -76,6 +85,26 @@ class Topic(models.Model):
     
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        """Auto-fill some SEO fields when not provided.
+
+        - meta_title: defaults to title
+        - meta_description: first 160 chars of content if empty
+        - keywords: handled by m2m_changed signal when tags are set; fall back to splitting title
+        """
+        # Ensure meta_title
+        if not self.meta_title:
+            self.meta_title = self.title
+
+        # Ensure meta_description
+        if not self.meta_description:
+            if self.content:
+                # simple excerpt: first 160 chars without newlines
+                excerpt = ' '.join(self.content.splitlines())[:160]
+                self.meta_description = excerpt
+
+        super().save(*args, **kwargs)
     
     @property
     def replies_count(self):
@@ -270,3 +299,52 @@ class PollVote(models.Model):
 
         
         self.save()
+
+
+# --- SEO helpers: keep Topic.keywords in sync with tags or title ---
+def _keywords_from_title(title: str) -> str:
+    # Split on non-word characters, lower, filter short words and duplicates
+    words = re.findall(r"\w+", title.lower())
+    filtered = [w for w in words if len(w) > 2]
+    # preserve order
+    seen = set()
+    out = []
+    for w in filtered:
+        if w not in seen:
+            seen.add(w)
+            out.append(w)
+    return ', '.join(out)
+
+
+@receiver(m2m_changed, sender=Topic.tags.through)
+def topic_tags_changed(sender, instance, action, **kwargs):
+    """When tags change, update keywords to match tags (if tags exist).
+
+    If there are no tags, and keywords is empty, populate from title.
+    """
+    if action in ('post_add', 'post_remove', 'post_clear'):
+        tags_qs = instance.tags.all()
+        if tags_qs.exists():
+            kw = ', '.join([t.name for t in tags_qs])
+            if instance.keywords != kw:
+                instance.keywords = kw
+                # avoid recursive m2m signal by saving without touching m2m
+                instance.save()
+        else:
+            # no tags: if keywords empty, use title
+            if not instance.keywords:
+                kw = _keywords_from_title(instance.title)
+                instance.keywords = kw
+                instance.save()
+
+
+@receiver(pre_save, sender=Topic)
+def topic_pre_save_fill_keywords(sender, instance, **kwargs):
+    # If there are no tags available (e.g., before m2m set) and keywords empty, use title
+    try:
+        has_tags = instance.tags.exists()
+    except Exception:
+        has_tags = False
+
+    if not has_tags and not instance.keywords:
+        instance.keywords = _keywords_from_title(instance.title)

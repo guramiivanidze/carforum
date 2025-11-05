@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getCategories, getCategoryTopics, searchAll } from '../services/api';
+import AdBanner from './AdBanner';
 import '../styles/CategoryPage.css';
 
 function CategoryPage() {
@@ -21,6 +22,7 @@ function CategoryPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false); // Track if search button was clicked
+  const [ordering, setOrdering] = useState('-created_at'); // Default to newest first
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,7 +30,7 @@ function CategoryPage() {
       try {
         const [categoriesData, topicsData] = await Promise.all([
           getCategories(),
-          getCategoryTopics(id, { page: currentPage, page_size: itemsPerPage })
+          getCategoryTopics(id, { page: currentPage, page_size: itemsPerPage, ordering })
         ]);
         
         // Handle paginated response - extract results array if paginated
@@ -53,7 +55,7 @@ function CategoryPage() {
     };
 
     fetchData();
-  }, [id, currentPage, itemsPerPage]);
+  }, [id, currentPage, itemsPerPage, ordering]);
 
   const calculatePopularTags = (topicsArray) => {
     // Count tag occurrences
@@ -303,6 +305,8 @@ function CategoryPage() {
         </div>
       </div>
 
+      <AdBanner location="category_header" />
+
       {/* Tabs and Sorting Bar */}
       <div className="category-tabs-bar">
         <div className="category-tabs">
@@ -320,14 +324,33 @@ function CategoryPage() {
             📅 My Posts
           </button>
         </div>
-        <div className="pagination-controls">
-          <label>Items per page:</label>
-          <select value={itemsPerPage} onChange={handleItemsPerPageChange} className="items-per-page-select">
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
+        <div className="category-controls-right">
+          <div className="ordering-control">
+            <label>Sort by:</label>
+            <select 
+              value={ordering} 
+              onChange={(e) => {
+                setOrdering(e.target.value);
+                setCurrentPage(1); // Reset to first page when changing ordering
+              }} 
+              className="ordering-select"
+            >
+              <option value="-created_at">Newest First</option>
+              <option value="created_at">Oldest First</option>
+              <option value="-updated_at">Recently Updated</option>
+              <option value="updated_at">Least Updated</option>
+              <option value="-replies_count">Most Replies</option>
+            </select>
+          </div>
+          <div className="pagination-controls">
+            <label>Items per page:</label>
+            <select value={itemsPerPage} onChange={handleItemsPerPageChange} className="items-per-page-select">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -416,57 +439,76 @@ function CategoryPage() {
             </div>
           ) : (
             <div className="topics-list">
-              {displayedTopics.map((topic) => (
-                <Link to={`/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div className="topic-row">
-                    <div className="topic-user-info">
-                      <div className="user-image">
-                        {topic.author?.user_image_url ? (
-                          <img 
-                            src={topic.author.user_image_url} 
-                            alt={topic.author.username}
-                            className="image-display"
-                          />
-                        ) : (
-                          topic.author?.username?.[0]?.toUpperCase() || "?"
-                        )}
-                      </div>
-                      <div className="user-meta">
-                        <span className="user-name">{topic.author?.username || "Unknown"}</span>
-                        <span className="post-time"> • {getTimeAgo(topic.created_at)}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="topic-content">
-                      <h3 className="topic-title-link">{topic.title}</h3>
-                      <p className="topic-preview">
-                        {topic.content ? topic.content.substring(0, 100) + '...' : 'Click to read more...'}
-                      </p>
-                      <div className="topic-tags">
-                        {topic.tags && topic.tags.length > 0 ? (
-                          topic.tags.map((tag, index) => (
-                            <span key={index} className="tag">{tag}</span>
-                          ))
-                        ) : (
-                          <span className="tag">{category.title}</span>
-                        )}
-                      </div>
-                    </div>
+              {(() => {
+                const topicsWithAd = [];
+                const middleIndex = Math.floor(displayedTopics.length / 2);
+                
+                displayedTopics.forEach((topic, index) => {
+                  // Add topic
+                  topicsWithAd.push(
+                    <Link to={`/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+                      <div className="topic-row">
+                        <div className="topic-user-info">
+                          <div className="user-image">
+                            {topic.author?.user_image_url ? (
+                              <img 
+                                src={topic.author.user_image_url} 
+                                alt={topic.author.username}
+                                className="image-display"
+                              />
+                            ) : (
+                              topic.author?.username?.[0]?.toUpperCase() || "?"
+                            )}
+                          </div>
+                          <div className="user-meta">
+                            <span className="user-name">{topic.author?.username || "Unknown"}</span>
+                            <span className="post-time"> • {getTimeAgo(topic.created_at)}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="topic-content">
+                          <h3 className="topic-title-link">{topic.title}</h3>
+                          <p className="topic-preview">
+                            {topic.content ? topic.content.substring(0, 100) + '...' : 'Click to read more...'}
+                          </p>
+                          <div className="topic-tags">
+                            {topic.tags && topic.tags.length > 0 ? (
+                              topic.tags.map((tag, idx) => (
+                                <span key={idx} className="tag">{tag}</span>
+                              ))
+                            ) : (
+                              <span className="tag">{category.title}</span>
+                            )}
+                          </div>
+                        </div>
 
-                    <div className="topic-stats-bar">
-                      <span className="stat-item">
-                        💬 {topic.replies_count || 0} replies
-                      </span>
-                      <span className="stat-item">
-                        👁 {topic.views || 0} views
-                      </span>
-                      <span className="last-activity">
-                        🕒 Last activity: {getTimeAgo(topic.updated_at)}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                        <div className="topic-stats-bar">
+                          <span className="stat-item">
+                            💬 {topic.replies_count || 0} replies
+                          </span>
+                          <span className="stat-item">
+                            👁 {topic.views || 0} views
+                          </span>
+                          <span className="last-activity">
+                            🕒 Last activity: {getTimeAgo(topic.updated_at)}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                  
+                  // Insert ad banner in the middle
+                  if (index === middleIndex - 1 && displayedTopics.length > 5) {
+                    topicsWithAd.push(
+                      <div key="ad-banner-topics" style={{ margin: '20px 0' }}>
+                        <AdBanner location="category_topics_list" />
+                      </div>
+                    );
+                  }
+                });
+                
+                return topicsWithAd;
+              })()}
             </div>
           )}
 
@@ -545,6 +587,8 @@ function CategoryPage() {
               <p className="no-rules">No rules set for this category yet.</p>
             )}
           </div>
+
+          <AdBanner location="category_sidebar" />
 
           {/* Popular Tags */}
           <div className="sidebar-card tags-card">

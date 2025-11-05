@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import AdBanner from './AdBanner';
 
 function Sidebar({ topics, topMembers }) {
   // Calculate popular topics from the topics prop
@@ -24,7 +25,7 @@ function Sidebar({ topics, topMembers }) {
             <Link to={`/topic/${topic.id}`} key={topic.id} style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="popular-topic">
                 <div className="popular-topic-title">
-                  🔥 {topic.title.length > 50 ? topic.title.substring(0, 50) + '...' : topic.title}
+                   {topic.title.length > 50 ? topic.title.substring(0, 50) + '...' : topic.title}
                 </div>
                 <div className="popular-topic-stats">{topic.replies_count} replies</div>
               </div>
@@ -34,6 +35,8 @@ function Sidebar({ topics, topMembers }) {
           <div>Loading...</div>
         )}
       </div>
+
+      <AdBanner location="sidebar_main" />
 
       <div className="sidebar-section">
         <h3>Top Members</h3>

@@ -1,0 +1,164 @@
+/* Ad Banner Styles */
+
+.ad-banner {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.ad-banner:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.ad-banner-image,
+.ad-banner-video {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ad-label {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.65rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  z-index: 1;
+}
+
+/* Loading state */
+.ad-banner-loading {
+  position: relative;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+}
+
+.ad-placeholder {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+}
+
+.ad-icon {
+  font-size: 2rem;
+}
+
+.ad-placeholder p {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+/* Size Variants */
+
+/* Small - Sidebar banners */
+.ad-banner-small {
+  margin: 1rem 0;
+  min-height: 120px;
+  max-height: 120px;
+  width: 100%;
+}
+
+.ad-banner-small .ad-banner-image,
+.ad-banner-small .ad-banner-video {
+  object-fit: contain;
+  max-height: 120px;
+}
+
+.ad-banner-small .ad-icon {
+  font-size: 1.5rem;
+}
+
+.ad-banner-small .ad-placeholder p {
+  font-size: 0.9rem;
+}
+
+/* Medium - Section separators */
+.ad-banner-medium {
+  margin: 2rem 0;
+  min-height: 150px;
+}
+
+/* Large - Between major sections */
+.ad-banner-large {
+  margin: 2.5rem 0;
+  min-height: 200px;
+}
+
+.ad-banner-large .ad-banner-content {
+  min-height: 200px;
+  padding: 2rem;
+}
+
+.ad-banner-large .ad-icon {
+  font-size: 3rem;
+}
+
+.ad-banner-large .ad-placeholder p {
+  font-size: 1.2rem;
+}
+
+/* Card size - Fits within grids */
+.ad-banner-card {
+  margin: 0;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Row size - Fits in topic/reply lists */
+.ad-banner-row {
+  margin: 0.75rem 0;
+  min-height: 100px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .ad-banner-large {
+    margin: 1.5rem 0;
+    min-height: 150px;
+  }
+
+  .ad-banner-medium {
+    margin: 1.25rem 0;
+    min-height: 120px;
+  }
+
+  .ad-banner-row {
+    min-height: 90px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ad-banner-card {
+    min-height: 200px;
+  }
+  
+  .ad-banner-small {
+    min-height: 100px;
+  }
+}
+

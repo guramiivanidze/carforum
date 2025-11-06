@@ -80,8 +80,8 @@ INSTALLED_APPS = [
     # 'django_extensions'  # Commented out - not installed
 ]
 
-if not DEBUG:
-    INSTALLED_APPS.append('django_extensions')
+# if not DEBUG:
+#     INSTALLED_APPS.append('django_extensions')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

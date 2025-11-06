@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     CategoryViewSet, TagViewSet, TopicViewSet, ReplyViewSet, UserProfileViewSet, 
-    ReportReasonViewSet, ReportViewSet, search, vote_poll
+    ReportReasonViewSet, ReportViewSet, search, vote_poll, get_site_settings
 )
 
 router = DefaultRouter()
@@ -18,4 +18,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('search/', search, name='search'),
     path('polls/<int:poll_id>/vote/', vote_poll, name='vote-poll'),
+    path('site-settings/', get_site_settings, name='site-settings'),
 ]

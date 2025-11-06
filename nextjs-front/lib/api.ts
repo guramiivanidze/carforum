@@ -255,8 +255,21 @@ export const getTopMembers = async () => {
 };
 
 // Search APIs
-export const searchAll = async (query: string) => {
-  const response = await api.get('/search/', { params: { q: query } });
+export const searchAll = async (
+  query: string, 
+  params?: { 
+    filter?: string; 
+    category?: string | number; 
+    min_replies?: number;
+    sort?: string;
+  }
+) => {
+  const response = await api.get('/search/', { 
+    params: { 
+      q: query,
+      ...params
+    } 
+  });
   return response.data;
 };
 

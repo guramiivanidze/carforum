@@ -575,33 +575,72 @@ export default function ProfilePage() {
                 <>
                   {/* Topics Tab */}
                   {activeTab === 'topics' && (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {topics.length === 0 ? (
-                        <p className="text-center text-gray-500 py-8">No topics yet.</p>
+                        <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-100">
+                          <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FaComments className="text-blue-600 text-3xl" />
+                          </div>
+                          <p className="text-gray-500 text-lg">No topics yet.</p>
+                        </div>
                       ) : (
-                        topics.map((topic) => (
-                          <Link
+                        topics.map((topic, index) => (
+                          <div
                             key={topic.id}
-                            href={`/topic/${topic.id}`}
-                            className="block border border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-md transition"
+                            className="group bg-white rounded-xl p-4 hover:shadow-lg transition-all cursor-pointer border border-gray-100 hover:border-blue-200"
+                            onClick={() => router.push(`/topic/${topic.id}`)}
                           >
-                            <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 mb-2">
-                              {topic.title}
-                            </h3>
-                            <div className="flex items-center gap-4 text-sm text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <FaReply />
-                                {topic.replies_count} replies
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <FaThumbsUp />
-                                {topic.likes_count} likes
-                              </span>
-                              <span>
-                                {new Date(topic.created_at).toLocaleDateString()}
-                              </span>
+                            <div className="flex items-start gap-4">
+                              {/* Topic Number Badge */}
+                              <div className="hidden sm:flex items-center justify-center w-10 h-10 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg font-bold text-gray-600 text-sm flex-shrink-0 group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600 transition-all">
+                                {index + 1}
+                              </div>
+
+                              {/* Topic Info */}
+                              <div className="flex-grow min-w-0">
+                                {/* Badges */}
+                                {(topic.is_pinned || topic.is_locked) && (
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {topic.is_pinned && (
+                                      <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-100 to-orange-100 text-orange-700 text-xs px-2.5 py-1 rounded-full font-semibold">
+                                        📌 Pinned
+                                      </span>
+                                    )}
+                                    {topic.is_locked && (
+                                      <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs px-2.5 py-1 rounded-full font-semibold">
+                                        🔒 Locked
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Title */}
+                                <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2 line-clamp-1">
+                                  {topic.title}
+                                </h3>
+
+                                {/* Date */}
+                                <div className="flex items-center gap-3 text-xs text-gray-600">
+                                  <span className="flex items-center gap-1 text-gray-500">
+                                    <FaCalendar className="text-[10px]" />
+                                    {new Date(topic.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Stats - Compact */}
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="flex items-center gap-1.5 bg-blue-50 px-2.5 py-1.5 rounded-lg group-hover:bg-blue-100 transition-colors">
+                                  <FaThumbsUp className="text-blue-600 text-xs" />
+                                  <span className="text-xs font-bold text-blue-600">{topic.likes_count || 0}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 bg-green-50 px-2.5 py-1.5 rounded-lg group-hover:bg-green-100 transition-colors">
+                                  <FaComments className="text-green-600 text-xs" />
+                                  <span className="text-xs font-bold text-green-600">{topic.replies_count || 0}</span>
+                                </div>
+                              </div>
                             </div>
-                          </Link>
+                          </div>
                         ))
                       )}
                     </div>
@@ -654,21 +693,22 @@ export default function ProfilePage() {
                               <h3 className="text-lg font-semibold mb-3">Recent Topics from People You Follow</h3>
                               <div className="space-y-3">
                                 {followingTopics.map((topic) => (
-                                  <Link
+                                  <div
                                     key={topic.id}
-                                    href={`/topic/${topic.id}`}
-                                    className="block border border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-md transition"
+                                    className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-md transition"
                                   >
                                     <div className="flex items-start justify-between mb-2">
-                                      <h4 className="text-lg font-semibold text-gray-900 hover:text-blue-600 flex-grow">
+                                      <Link
+                                        href={`/topic/${topic.id}`}
+                                        className="text-lg font-semibold text-gray-900 hover:text-blue-600 flex-grow"
+                                      >
                                         {topic.title}
-                                      </h4>
+                                      </Link>
                                     </div>
                                     <div className="flex items-center gap-4 text-sm text-gray-500">
                                       <Link 
                                         href={`/profile/${topic.author.id}`}
                                         className="flex items-center gap-2 hover:text-blue-600"
-                                        onClick={(e) => e.stopPropagation()}
                                       >
                                         {topic.author.user_image_url ? (
                                           <img
@@ -695,7 +735,7 @@ export default function ProfilePage() {
                                         {new Date(topic.created_at).toLocaleDateString()}
                                       </span>
                                     </div>
-                                  </Link>
+                                  </div>
                                 ))}
                               </div>
                             </div>
@@ -871,34 +911,48 @@ export default function ProfilePage() {
 
                   {/* Bookmarks Tab */}
                   {activeTab === 'bookmarks' && (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {!user || user.id !== profile.id ? (
-                        <p className="text-center text-gray-500 py-8">This information is private.</p>
+                        <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-100">
+                          <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FaBookmark className="text-gray-400 text-3xl" />
+                          </div>
+                          <p className="text-gray-500 text-lg">This information is private.</p>
+                        </div>
                       ) : bookmarks.length === 0 ? (
-                        <p className="text-center text-gray-500 py-8">No bookmarks yet.</p>
+                        <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-100">
+                          <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FaBookmark className="text-blue-600 text-3xl" />
+                          </div>
+                          <p className="text-gray-500 text-lg">No bookmarks yet.</p>
+                        </div>
                       ) : (
-                        bookmarks.map((bookmark: any) => {
+                        bookmarks.map((bookmark: any, index) => {
                           const topic = bookmark.topic_details;
                           return (
                             <div
                               key={bookmark.id}
-                              className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-md transition"
+                              className="group bg-white rounded-xl p-4 hover:shadow-lg transition-all cursor-pointer border border-gray-100 hover:border-blue-200"
+                              onClick={() => router.push(`/topic/${topic.id}`)}
                             >
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex-grow">
-                                  <Link
-                                    href={`/topic/${topic.id}`}
-                                    className="text-lg font-semibold text-gray-900 hover:text-blue-600 mb-1 block"
-                                  >
+                              <div className="flex items-start gap-4">
+                                {/* Bookmark Number Badge */}
+                                <div className="hidden sm:flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex-shrink-0">
+                                  <FaBookmark className="text-blue-600 text-sm" />
+                                </div>
+
+                                {/* Topic Info */}
+                                <div className="flex-grow min-w-0">
+                                  {/* Title */}
+                                  <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2 line-clamp-1">
                                     {topic.title}
-                                  </Link>
+                                  </h3>
+
+                                  {/* Author */}
                                   {topic.author && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                      <span>by</span>
-                                      <Link
-                                        href={`/profile/${topic.author.id}`}
-                                        className="flex items-center gap-2 hover:text-blue-600"
-                                      >
+                                    <div className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+                                      <span className="text-gray-500">by</span>
+                                      <div className="flex items-center gap-1.5">
                                         {topic.author.user_image_url ? (
                                           <img
                                             src={topic.author.user_image_url}
@@ -906,32 +960,32 @@ export default function ProfilePage() {
                                             className="w-5 h-5 rounded-full object-cover"
                                           />
                                         ) : (
-                                          <div className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                          <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold">
                                             {topic.author.username.charAt(0).toUpperCase()}
                                           </div>
                                         )}
-                                        <span className="font-medium">@{topic.author.username}</span>
-                                      </Link>
+                                        <span className="font-medium">{topic.author.username}</span>
+                                      </div>
                                     </div>
                                   )}
+
+                                  {/* Bookmarked Date */}
+                                  <div className="text-[11px] text-gray-500">
+                                    Bookmarked {new Date(bookmark.created_at).toLocaleDateString()}
+                                  </div>
                                 </div>
-                                <FaBookmark className="text-blue-600 flex-shrink-0 ml-2" />
-                              </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <FaReply />
-                                  {topic.replies_count} replies
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <FaThumbsUp />
-                                  {topic.likes_count || 0} likes
-                                </span>
-                                <span>
-                                  {new Date(topic.created_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-500 mt-2">
-                                Bookmarked on {new Date(bookmark.created_at).toLocaleDateString()}
+
+                                {/* Stats - Compact */}
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <div className="flex items-center gap-1.5 bg-blue-50 px-2.5 py-1.5 rounded-lg group-hover:bg-blue-100 transition-colors">
+                                    <FaThumbsUp className="text-blue-600 text-xs" />
+                                    <span className="text-xs font-bold text-blue-600">{topic.likes_count || 0}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 bg-green-50 px-2.5 py-1.5 rounded-lg group-hover:bg-green-100 transition-colors">
+                                    <FaComments className="text-green-600 text-xs" />
+                                    <span className="text-xs font-bold text-green-600">{topic.replies_count || 0}</span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           );

@@ -139,90 +139,111 @@ export default function CategoryPage() {
             </div>
 
             {/* Topics List */}
-            <div className="bg-white rounded-lg shadow-md">
+            <div className="space-y-3">
               {topics.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <p className="mb-4">No topics yet in this category.</p>
+                <div className="bg-white rounded-xl shadow-md p-12 text-center">
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FaComments className="text-blue-600 text-3xl" />
+                  </div>
+                  <p className="text-gray-500 text-lg mb-4">No topics yet in this category.</p>
                   <Link
                     href="/create-topic"
-                    className="text-blue-600 hover:underline"
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg font-semibold"
                   >
                     Be the first to create a topic!
                   </Link>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-200">
-                  {topics.map((topic) => (
-                    <div
-                      key={topic.id}
-                      className="p-4 hover:bg-gray-50 transition cursor-pointer"
-                      onClick={() => router.push(`/topic/${topic.id}`)}
-                    >
-                      <div className="flex items-start gap-4">
-                        {/* Topic Info */}
-                        <div className="flex-grow">
+                topics.map((topic, index) => (
+                  <div
+                    key={topic.id}
+                    className="group bg-white rounded-xl p-4 hover:shadow-lg transition-all cursor-pointer border border-gray-100 hover:border-blue-200"
+                    onClick={() => router.push(`/topic/${topic.id}`)}
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Topic Number Badge */}
+                      <div className="hidden sm:flex items-center justify-center w-10 h-10 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg font-bold text-gray-600 text-sm flex-shrink-0 group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600 transition-all">
+                        {(page - 1) * 20 + index + 1}
+                      </div>
+
+                      {/* Topic Info */}
+                      <div className="flex-grow min-w-0">
+                        {/* Badges */}
+                        {(topic.is_pinned || topic.is_locked) && (
                           <div className="flex items-center gap-2 mb-2">
                             {topic.is_pinned && (
-                              <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">
-                                Pinned
+                              <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-100 to-orange-100 text-orange-700 text-xs px-2.5 py-1 rounded-full font-semibold">
+                                📌 Pinned
                               </span>
                             )}
                             {topic.is_locked && (
-                              <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">
-                                Locked
+                              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs px-2.5 py-1 rounded-full font-semibold">
+                                🔒 Locked
                               </span>
                             )}
                           </div>
+                        )}
 
-                          <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 mb-2">
-                            {topic.title}
-                          </h3>
+                        {/* Title */}
+                        <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2 line-clamp-1">
+                          {topic.title}
+                        </h3>
 
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <FaUser />
-                              {topic.author.username}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <FaClock />
-                              {formatDate(topic.created_at)}
-                            </span>
-                          </div>
-
-                          {/* Tags */}
-                          {topic.tags && topic.tags.length > 0 && (
-                            <div className="flex items-center gap-2 mt-2">
-                              {topic.tags.slice(0, 3).map((tag, index) => (
-                                <span
-                                  key={index}
-                                  className="bg-blue-50 text-blue-600 text-xs px-2 py-1 rounded"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                        {/* Author and Date */}
+                        <div className="flex items-center gap-3 text-xs text-gray-600 mb-2">
+                          <span className="flex items-center gap-1.5">
+                            {topic.author.user_image_url ? (
+                              <img
+                                src={topic.author.user_image_url}
+                                alt={topic.author.username}
+                                className="w-5 h-5 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold">
+                                {topic.author.username.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <span className="font-medium">{topic.author.username}</span>
+                          </span>
+                          <span className="flex items-center gap-1 text-gray-500">
+                            <FaClock className="text-[10px]" />
+                            {formatDate(topic.created_at)}
+                          </span>
                         </div>
 
-                        {/* Stats */}
-                        <div className="flex flex-col sm:flex-row items-center gap-3 min-w-[150px] text-sm">
-                          <span className="flex items-center gap-1.5 text-gray-600">
-                            <FaThumbsUp className="text-blue-600" />
-                            <span className="font-medium">{topic.likes_count || 0}</span>
-                          </span>
-                          <span className="flex items-center gap-1.5 text-gray-600">
-                            <FaComments className="text-green-600" />
-                            <span className="font-medium">{topic.replies_count || 0}</span>
-                          </span>
-                          <span className="flex items-center gap-1.5 text-gray-600">
-                            <FaEye className="text-purple-600" />
-                            <span className="font-medium">{topic.views || 0}</span>
-                          </span>
+                        {/* Tags */}
+                        {topic.tags && topic.tags.length > 0 && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {topic.tags.slice(0, 3).map((tag, tagIndex) => (
+                              <span
+                                key={tagIndex}
+                                className="bg-blue-50 text-blue-600 text-[11px] px-2 py-0.5 rounded-full font-medium border border-blue-100"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Stats - Compact */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-1.5 bg-blue-50 px-2.5 py-1.5 rounded-lg group-hover:bg-blue-100 transition-colors">
+                          <FaThumbsUp className="text-blue-600 text-xs" />
+                          <span className="text-xs font-bold text-blue-600">{topic.likes_count || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-green-50 px-2.5 py-1.5 rounded-lg group-hover:bg-green-100 transition-colors">
+                          <FaComments className="text-green-600 text-xs" />
+                          <span className="text-xs font-bold text-green-600">{topic.replies_count || 0}</span>
+                        </div>
+                        <div className="hidden md:flex items-center gap-1.5 bg-purple-50 px-2.5 py-1.5 rounded-lg group-hover:bg-purple-100 transition-colors">
+                          <FaEye className="text-purple-600 text-xs" />
+                          <span className="text-xs font-bold text-purple-600">{topic.views || 0}</span>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))
               )}
             </div>
 

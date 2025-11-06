@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
     Category, CategoryRule, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
-    TopicImage, Poll, PollOption, PollVote, Tag, ReplyImage
+    TopicImage, Poll, PollOption, PollVote, Tag, ReplyImage, SiteSettings
 )
 
 
@@ -464,3 +464,50 @@ class PasswordChangeSerializer(serializers.Serializer):
         if not any(char.isalpha() for char in value):
             raise serializers.ValidationError("Password must contain at least one letter.")
         return value
+
+
+class SiteSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for public site settings (excluding sensitive data)"""
+    keywords_list = serializers.SerializerMethodField()
+    og_image_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = SiteSettings
+        fields = [
+            'site_title',
+            'site_description',
+            'site_keywords',
+            'keywords_list',
+            'og_image_url',
+            'twitter_handle',
+            'facebook_url',
+            'instagram_url',
+            'youtube_url',
+            'site_url',
+            'show_announcement',
+            'announcement_text',
+            'announcement_type',
+            'announcement_link',
+            'announcement_link_text',
+            'topics_per_page',
+            'replies_per_page',
+            'allow_topic_images',
+            'allow_polls',
+            'max_images_per_topic',
+            'max_poll_options',
+            'registration_enabled',
+            'registration_message',
+        ]
+    
+    def get_keywords_list(self, obj):
+        """Convert comma-separated keywords to list"""
+        if obj.site_keywords:
+            return [k.strip() for k in obj.site_keywords.split(',') if k.strip()]
+        return []
+    
+    def get_og_image_url(self, obj):
+        """Get the full URL for the OG image"""
+        if obj.og_image:
+            return obj.og_image.url
+        return None
+

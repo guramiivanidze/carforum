@@ -7,12 +7,12 @@ from django.contrib.auth.models import User
 from django.db.models import Q, Count
 from .models import (
     Category, Topic, Reply, UserProfile, ReportReason, Report, Bookmark, 
-    Poll, PollOption, PollVote, TopicImage, Tag
+    Poll, PollOption, PollVote, TopicImage, Tag, SiteSettings
 )
 from .serializers import (
     CategorySerializer, TopicSerializer, TopicDetailSerializer,
     ReplySerializer, UserSerializer, UserProfileSerializer, ReportReasonSerializer, ReportSerializer, 
-    BookmarkSerializer, PollSerializer, TagSerializer
+    BookmarkSerializer, PollSerializer, TagSerializer, SiteSettingsSerializer
 )
 from .pagination import CustomPageNumberPagination
 from gamification.services import GamificationService
@@ -1247,4 +1247,14 @@ def vote_poll(request, poll_id):
     
     # Return updated poll data
     serializer = PollSerializer(poll, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def get_site_settings(request):
+    """
+    Get public site settings for frontend use
+    """
+    settings = SiteSettings.load()
+    serializer = SiteSettingsSerializer(settings)
     return Response(serializer.data)

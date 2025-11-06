@@ -282,3 +282,109 @@ class PollVote(models.Model):
     
     def __str__(self):
         return f"{self.user.username} voted for {self.poll_option.text}"
+
+
+class SiteSettings(models.Model):
+    """Singleton model for site-wide settings manageable from admin panel"""
+    
+    # SEO Settings
+    site_title = models.CharField(max_length=200, default='CarForum - Automotive Discussion Community')
+    site_description = models.TextField(default='Join CarForum to discuss cars, share experiences, and connect with automotive enthusiasts.')
+    site_keywords = models.TextField(
+        default='car forum, automotive discussion, car community, vehicle talk',
+        help_text='Comma-separated keywords for SEO'
+    )
+    google_verification = models.CharField(max_length=100, blank=True, help_text='Google Search Console verification code')
+    yandex_verification = models.CharField(max_length=100, blank=True, help_text='Yandex Webmaster verification code')
+    bing_verification = models.CharField(max_length=100, blank=True, help_text='Bing Webmaster verification code')
+    
+    # Open Graph / Social Media
+    og_image = CloudinaryField('image', blank=True, null=True, help_text='Default Open Graph image for social sharing')
+    twitter_handle = models.CharField(max_length=50, blank=True, help_text='Twitter/X handle (without @)')
+    facebook_url = models.URLField(blank=True, help_text='Facebook page URL')
+    instagram_url = models.URLField(blank=True, help_text='Instagram profile URL')
+    youtube_url = models.URLField(blank=True, help_text='YouTube channel URL')
+    
+    # Site URLs
+    site_url = models.URLField(default='http://localhost:3000', help_text='Main site URL (for canonical URLs and sitemap)')
+    api_url = models.URLField(default='http://localhost:8000', help_text='API base URL')
+    
+    # Site Configuration
+    maintenance_mode = models.BooleanField(default=False, help_text='Enable maintenance mode')
+    maintenance_message = models.TextField(
+        default='We are currently performing maintenance. Please check back soon.',
+        help_text='Message to display during maintenance'
+    )
+    registration_enabled = models.BooleanField(default=True, help_text='Allow new user registrations')
+    registration_message = models.TextField(
+        blank=True,
+        help_text='Optional message to display when registration is disabled'
+    )
+    
+    # Pagination
+    topics_per_page = models.IntegerField(default=20, help_text='Number of topics per page')
+    replies_per_page = models.IntegerField(default=10, help_text='Number of replies per page')
+    
+    # Analytics
+    google_analytics_id = models.CharField(max_length=50, blank=True, help_text='Google Analytics tracking ID (e.g., G-XXXXXXXXXX)')
+    google_tag_manager_id = models.CharField(max_length=50, blank=True, help_text='Google Tag Manager ID (e.g., GTM-XXXXXXX)')
+    
+    # Email Settings
+    contact_email = models.EmailField(default='support@carforum.com', help_text='Contact email for inquiries')
+    admin_email = models.EmailField(default='admin@carforum.com', help_text='Admin email for notifications')
+    
+    # Announcement Banner
+    show_announcement = models.BooleanField(default=False, help_text='Show announcement banner')
+    announcement_text = models.TextField(blank=True, help_text='Announcement banner text')
+    announcement_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('info', 'Info'),
+            ('warning', 'Warning'),
+            ('success', 'Success'),
+            ('error', 'Error'),
+        ],
+        default='info',
+        help_text='Announcement banner style'
+    )
+    announcement_link = models.URLField(blank=True, help_text='Optional link for the announcement')
+    announcement_link_text = models.CharField(max_length=100, blank=True, help_text='Text for the announcement link')
+    
+    # Moderation
+    auto_hide_reported_replies = models.IntegerField(
+        default=5,
+        help_text='Automatically hide replies after this many reports (0 to disable)'
+    )
+    require_email_verification = models.BooleanField(default=False, help_text='Require email verification for new users')
+    
+    # Content Settings
+    allow_topic_images = models.BooleanField(default=True, help_text='Allow images in topics')
+    allow_polls = models.BooleanField(default=True, help_text='Allow polls in topics')
+    max_images_per_topic = models.IntegerField(default=5, help_text='Maximum images per topic')
+    max_poll_options = models.IntegerField(default=10, help_text='Maximum poll options')
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Site Settings'
+        verbose_name_plural = 'Site Settings'
+    
+    def __str__(self):
+        return 'Site Settings'
+    
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists (Singleton pattern)"""
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        """Prevent deletion"""
+        pass
+    
+    @classmethod
+    def load(cls):
+        """Load the singleton instance"""
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj

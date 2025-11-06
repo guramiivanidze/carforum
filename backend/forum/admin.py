@@ -3,7 +3,7 @@ from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 from .models import (
     Category, CategoryRule, Tag, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
-    TopicImage, Poll, PollOption, PollVote, ReplyImage
+    TopicImage, Poll, PollOption, PollVote, ReplyImage, SiteSettings
 )
 
 
@@ -279,3 +279,113 @@ class ReplyImageAdmin(admin.ModelAdmin):
     list_filter = ['created_at']
     search_fields = ['caption', 'reply__content']
     readonly_fields = ['created_at']
+
+
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(admin.ModelAdmin):
+    """Admin interface for site-wide settings (Singleton)"""
+    
+    fieldsets = (
+        ('SEO Settings', {
+            'fields': (
+                'site_title',
+                'site_description',
+                'site_keywords',
+                'google_verification',
+                'yandex_verification',
+                'bing_verification',
+            ),
+            'description': 'Search engine optimization and verification settings'
+        }),
+        ('Social Media & Open Graph', {
+            'fields': (
+                'og_image',
+                'twitter_handle',
+                'facebook_url',
+                'instagram_url',
+                'youtube_url',
+            ),
+            'description': 'Social media links and Open Graph settings for rich sharing'
+        }),
+        ('Site URLs', {
+            'fields': (
+                'site_url',
+                'api_url',
+            ),
+            'description': 'Base URLs for frontend and backend'
+        }),
+        ('Site Configuration', {
+            'fields': (
+                'maintenance_mode',
+                'maintenance_message',
+                'registration_enabled',
+                'registration_message',
+            ),
+            'description': 'General site configuration options'
+        }),
+        ('Pagination', {
+            'fields': (
+                'topics_per_page',
+                'replies_per_page',
+            ),
+            'description': 'Items per page for listings'
+        }),
+        ('Analytics', {
+            'fields': (
+                'google_analytics_id',
+                'google_tag_manager_id',
+            ),
+            'description': 'Analytics and tracking codes'
+        }),
+        ('Email Settings', {
+            'fields': (
+                'contact_email',
+                'admin_email',
+            ),
+            'description': 'Email addresses for notifications and contact'
+        }),
+        ('Announcement Banner', {
+            'fields': (
+                'show_announcement',
+                'announcement_text',
+                'announcement_type',
+                'announcement_link',
+                'announcement_link_text',
+            ),
+            'description': 'Site-wide announcement banner settings'
+        }),
+        ('Moderation Settings', {
+            'fields': (
+                'auto_hide_reported_replies',
+                'require_email_verification',
+            ),
+            'description': 'Content moderation and user verification settings'
+        }),
+        ('Content Settings', {
+            'fields': (
+                'allow_topic_images',
+                'allow_polls',
+                'max_images_per_topic',
+                'max_poll_options',
+            ),
+            'description': 'Configure what content features are enabled'
+        }),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def has_add_permission(self, request):
+        """Only allow one instance"""
+        return not SiteSettings.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of the singleton instance"""
+        return False
+    
+    def changelist_view(self, request, extra_context=None):
+        """Redirect to the change page if instance exists"""
+        if SiteSettings.objects.exists():
+            obj = SiteSettings.objects.first()
+            from django.shortcuts import redirect
+            return redirect('admin:forum_sitesettings_change', obj.pk)
+        return super().changelist_view(request, extra_context)

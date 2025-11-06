@@ -219,10 +219,16 @@ if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 else:
     # In production, only allow specific origins from env
-    CORS_ALLOWED_ORIGINS = config(
+    cors_origins_raw = config(
         'CORS_ALLOWED_ORIGINS',
-        default='http://localhost:3000,http://127.0.0.1:3000'
-    ).split(',')
+        default='http://localhost:3000,http://127.0.0.1:3000,https://carforum-nextjs.onrender.com'
+    )
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_raw.split(',') if origin.strip()]
+    
+    # Always include the Next.js frontend on Render
+    nextjs_url = 'https://carforum-nextjs.onrender.com'
+    if nextjs_url not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(nextjs_url)
 
 CORS_ALLOW_CREDENTIALS = True
 

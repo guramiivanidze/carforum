@@ -113,6 +113,21 @@ class Reply(models.Model):
         return self.likes.count()
 
 
+class ReplyImage(models.Model):
+    """Images attached to replies"""
+    reply = models.ForeignKey(Reply, on_delete=models.CASCADE, related_name='images')
+    image = CloudinaryField('image', folder='reply_images')
+    caption = models.CharField(max_length=200, blank=True)
+    order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['order', 'created_at']
+    
+    def __str__(self):
+        return f"Image for reply {self.reply.id}"
+
+
 class UserProfile(models.Model):
     """Extended user profile"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')

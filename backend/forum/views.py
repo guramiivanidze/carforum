@@ -378,6 +378,32 @@ class TopicViewSet(viewsets.ModelViewSet):
         serializer = TopicSerializer(top_topics, many=True, context={'request': request})
         return Response(serializer.data)
     
+    @action(detail=True, methods=['get'])
+    def participants(self, request, pk=None):
+        """Get users who participated in replies (excluding topic author)"""
+        topic = self.get_object()
+        
+        # Get unique reply authors for this topic (excluding topic author)
+        from django.db.models import Count, Q
+        
+        participant_ids = topic.replies.filter(
+            is_hidden=False
+        ).exclude(
+            author=topic.author
+        ).values_list('author', flat=True).distinct()
+        
+        # Get user objects with their profiles
+        from django.contrib.auth.models import User
+        participants = User.objects.filter(
+            id__in=participant_ids
+        ).select_related('profile').annotate(
+            reply_count=Count('replies', filter=Q(replies__topic=topic, replies__is_hidden=False))
+        ).order_by('-reply_count')[:10]  # Top 10 most active participants
+        
+        # Serialize participants
+        serializer = UserSerializer(participants, many=True, context={'request': request})
+        return Response(serializer.data)
+    
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def replies(self, request, pk=None):
         """Create a reply for this topic"""
@@ -470,22 +496,127 @@ class ReplyViewSet(viewsets.ModelViewSet):
     """API endpoint for replies"""
     queryset = Reply.objects.all()
     serializer_class = ReplySerializer
-    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        """Allow read-only access for unauthenticated users"""
+        if self.action in ['list', 'retrieve']:
+            return []  # No permission required for viewing
+        return [IsAuthenticated()]  # Authentication required for create, update, delete
+    
+    def get_queryset(self):
+        """Filter replies by topic if topic_id is provided"""
+        queryset = Reply.objects.all()
+        topic_id = self.request.query_params.get('topic_id', None)
+        
+        if topic_id is not None:
+            # Get user from request
+            user = self.request.user
+            
+            # Only get top-level replies (parent=None), nested replies will be included via child_replies
+            if user.is_authenticated:
+                # Show non-hidden replies + user's own hidden replies (so they can see the report)
+                from django.db.models import Q
+                queryset = queryset.filter(
+                    topic_id=topic_id
+                ).filter(
+                    Q(is_hidden=False) | Q(author=user, is_hidden=True)
+                ).filter(parent=None)  # Only top-level replies
+            else:
+                # Anonymous users only see non-hidden top-level replies
+                queryset = queryset.filter(
+                    topic_id=topic_id,
+                    is_hidden=False,
+                    parent=None
+                )
+        
+        return queryset
     
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        # Get topic_id from request data
+        topic_id = self.request.data.get('topic')
+        if not topic_id:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'topic': 'This field is required.'})
+        
+        # Get the topic object
+        try:
+            topic = Topic.objects.get(id=topic_id)
+        except Topic.DoesNotExist:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'topic': 'Invalid topic ID.'})
+        
+        # Handle parent reply - flatten nesting to only 1 level
+        parent_id = self.request.data.get('parent')
+        parent = None
+        
+        if parent_id:
+            try:
+                parent_reply = Reply.objects.get(id=parent_id)
+                
+                # If the parent already has a parent (it's nested), 
+                # set parent to the top-level reply instead
+                if parent_reply.parent:
+                    parent = parent_reply.parent
+                else:
+                    parent = parent_reply
+                    
+            except Reply.DoesNotExist:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({'parent': 'Invalid parent reply ID.'})
+        
+        serializer.save(author=self.request.user, topic=topic, parent=parent)
     
     def create(self, request, *args, **kwargs):
-        """Create reply with gamification tracking"""
-        response = super().create(request, *args, **kwargs)
-        
-        # Track gamification for reply creation
-        gamification_result = GamificationService.track_reply_created(request.user)
-        
-        # Add gamification data to response
-        response.data['gamification'] = gamification_result
-        
-        return response
+        """Create reply with images and gamification tracking"""
+        try:
+            # Create the reply
+            reply_data = {
+                'topic': request.data.get('topic'),
+                'content': request.data.get('content'),
+                'parent': request.data.get('parent'),
+            }
+            
+            serializer = self.get_serializer(data=reply_data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            reply = serializer.instance
+            
+            # Handle image uploads (max 5 images)
+            images = []
+            if hasattr(request.data, 'getlist'):
+                # FormData request
+                images = request.data.getlist('images')
+            elif 'images' in request.FILES:
+                # Single file
+                images = [request.FILES['images']]
+            
+            if images:
+                from .models import ReplyImage
+                for idx, image_file in enumerate(images[:5]):  # Limit to 5 images
+                    caption = request.data.get(f'caption_{idx}', '')
+                    ReplyImage.objects.create(
+                        reply=reply,
+                        image=image_file,
+                        caption=caption,
+                        order=idx
+                    )
+            
+            # Track gamification for reply creation
+            gamification_result = GamificationService.track_reply_created(request.user)
+            
+            # Re-serialize to include images
+            serializer = self.get_serializer(reply)
+            response_data = serializer.data
+            response_data['gamification'] = gamification_result
+            
+            headers = self.get_success_headers(response_data)
+            return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
     
     def get_serializer_context(self):
         context = super().get_serializer_context()

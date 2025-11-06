@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
     Category, CategoryRule, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
-    TopicImage, Poll, PollOption, PollVote, Tag
+    TopicImage, Poll, PollOption, PollVote, Tag, ReplyImage
 )
 
 
@@ -49,24 +49,63 @@ class TagSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'usage_count', 'created_at']
 
 
+class ReplyImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ReplyImage
+        fields = ['id', 'image', 'image_url', 'caption', 'order', 'created_at']
+        read_only_fields = ['created_at']
+    
+    def get_image_url(self, obj):
+        """Get the full URL for the image"""
+        if obj.image:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+
+
 class ReplySerializer(serializers.ModelSerializer):
     author = serializers.SerializerMethodField()
     likes_count = serializers.IntegerField(read_only=True)
     user_has_liked = serializers.SerializerMethodField()
     resolved_report = serializers.SerializerMethodField()
+    pending_reports_count = serializers.SerializerMethodField()
     child_replies = serializers.SerializerMethodField()
     replies_count = serializers.ReadOnlyField()
     parent_author = serializers.SerializerMethodField()
+    topic_title = serializers.CharField(source='topic.title', read_only=True)
+    topic_author = serializers.SerializerMethodField()
+    images = ReplyImageSerializer(many=True, read_only=True)
     
     class Meta:
         model = Reply
-        fields = ['id', 'topic', 'author', 'parent', 'parent_author', 'content', 'likes_count', 'user_has_liked', 
-                  'child_replies', 'replies_count', 'is_hidden', 'resolved_report', 'created_at', 'updated_at']
+        fields = ['id', 'topic', 'topic_title', 'topic_author', 'author', 'parent', 'parent_author', 'content', 
+                  'likes_count', 'user_has_liked', 'child_replies', 'replies_count', 'is_hidden', 
+                  'resolved_report', 'pending_reports_count', 'images', 'created_at', 'updated_at']
         read_only_fields = ['author', 'topic', 'likes_count', 'is_hidden']
     
     def get_author(self, obj):
         """Serialize author with context"""
         return UserSerializer(obj.author, context=self.context).data
+    
+    def get_topic_author(self, obj):
+        """Get the topic author info"""
+        user_image_url = None
+        if hasattr(obj.topic.author, 'profile') and obj.topic.author.profile.user_image:
+            request = self.context.get('request')
+            if request is not None:
+                user_image_url = request.build_absolute_uri(obj.topic.author.profile.user_image.url)
+            else:
+                user_image_url = obj.topic.author.profile.user_image.url
+        
+        return {
+            'id': obj.topic.author.id,
+            'username': obj.topic.author.username,
+            'user_image_url': user_image_url
+        }
     
     def get_parent_author(self, obj):
         """Get the author info of the parent reply"""
@@ -84,7 +123,11 @@ class ReplySerializer(serializers.ModelSerializer):
         return False
     
     def get_child_replies(self, obj):
-        """Recursively serialize nested replies"""
+        """Serialize child replies - only 1 level deep (no nested children)"""
+        # If already nested, don't include further child_replies
+        if self.context.get('is_nested'):
+            return []
+        
         request = self.context.get('request')
         
         if request and request.user.is_authenticated:
@@ -96,7 +139,11 @@ class ReplySerializer(serializers.ModelSerializer):
         else:
             child_replies = obj.child_replies.filter(is_hidden=False)
         
-        return ReplySerializer(child_replies, many=True, context=self.context).data
+        # Create a new context with a flag to prevent further nesting
+        child_context = self.context.copy()
+        child_context['is_nested'] = True
+        
+        return ReplySerializer(child_replies, many=True, context=child_context).data
     
     def get_resolved_report(self, obj):
         # Only return resolved report info if the current user is the author
@@ -116,6 +163,14 @@ class ReplySerializer(serializers.ModelSerializer):
                     'resolved_at': resolved_report.reviewed_at
                 }
         return None
+    
+    def get_pending_reports_count(self, obj):
+        # Only return pending reports count if the current user is the author
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and obj.author == request.user:
+            from .models import Report
+            return Report.objects.filter(reply=obj, status='pending').count()
+        return 0
 
 
 class TopicImageSerializer(serializers.ModelSerializer):
@@ -186,6 +241,7 @@ class TopicSerializer(serializers.ModelSerializer):
     author = serializers.SerializerMethodField()
     category_name = serializers.CharField(source='category.title', read_only=True)
     replies_count = serializers.ReadOnlyField()
+    likes_count = serializers.ReadOnlyField()
     images = TopicImageSerializer(many=True, read_only=True)
     poll = PollSerializer(read_only=True)
     tags = serializers.SerializerMethodField()
@@ -200,7 +256,7 @@ class TopicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topic
         fields = ['id', 'title', 'author', 'category', 'category_name', 
-                  'content', 'tags', 'tag_ids', 'replies_count', 'views', 'images', 'poll', 'created_at', 'updated_at']
+                  'content', 'tags', 'tag_ids', 'replies_count', 'likes_count', 'views', 'images', 'poll', 'created_at', 'updated_at']
         read_only_fields = ['author', 'views']
     
     def get_author(self, obj):
@@ -215,7 +271,6 @@ class TopicSerializer(serializers.ModelSerializer):
 class TopicDetailSerializer(serializers.ModelSerializer):
     author = serializers.SerializerMethodField()
     category = CategorySerializer(read_only=True)
-    replies = serializers.SerializerMethodField()
     replies_count = serializers.ReadOnlyField()
     likes_count = serializers.ReadOnlyField()
     user_has_liked = serializers.SerializerMethodField()
@@ -228,7 +283,7 @@ class TopicDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topic
         fields = ['id', 'title', 'author', 'category', 'content', 'tags',
-                  'replies', 'replies_count', 'likes_count', 'user_has_liked', 'views', 'images', 'poll', 'created_at', 'updated_at', 'user_has_bookmarked', 'bookmarks_count']
+                  'replies_count', 'likes_count', 'user_has_liked', 'views', 'images', 'poll', 'created_at', 'updated_at', 'user_has_bookmarked', 'bookmarks_count']
     
     def get_author(self, obj):
         """Serialize author with context"""
@@ -253,22 +308,6 @@ class TopicDetailSerializer(serializers.ModelSerializer):
     def get_bookmarks_count(self, obj):
         """Return the number of users who bookmarked this topic"""
         return Bookmark.objects.filter(topic=obj).count()
-    
-    def get_replies(self, obj):
-        # Only get top-level replies (parent=None), nested replies will be included via child_replies
-        request = self.context.get('request')
-        
-        if request and request.user.is_authenticated:
-            # Show non-hidden replies + user's own hidden replies (so they can see the report)
-            from django.db.models import Q
-            replies = obj.replies.filter(
-                Q(is_hidden=False) | Q(author=request.user, is_hidden=True)
-            ).filter(parent=None)  # Only top-level replies
-        else:
-            # Anonymous users only see non-hidden top-level replies
-            replies = obj.replies.filter(is_hidden=False, parent=None)
-        
-        return ReplySerializer(replies, many=True, context=self.context).data
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

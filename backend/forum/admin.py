@@ -3,7 +3,7 @@ from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 from .models import (
     Category, CategoryRule, Tag, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
-    TopicImage, Poll, PollOption, PollVote
+    TopicImage, Poll, PollOption, PollVote, ReplyImage
 )
 
 
@@ -270,4 +270,12 @@ class PollVoteAdmin(ImportExportModelAdmin):
     list_display = ['user', 'poll_option', 'created_at']
     list_filter = ['created_at']
     search_fields = ['user__username', 'poll__option__text']
+    readonly_fields = ['created_at']
+
+
+@admin.register(ReplyImage)
+class ReplyImageAdmin(admin.ModelAdmin):
+    list_display = ['reply', 'caption', 'order', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['caption', 'reply__content']
     readonly_fields = ['created_at']

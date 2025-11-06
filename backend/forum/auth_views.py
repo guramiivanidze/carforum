@@ -74,18 +74,9 @@ def register(request):
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
 
-        # Serialize user data
-        user_serializer = UserSerializer(user, context={'request': request})
-        profile_serializer = UserProfileSerializer(user.profile, context={'request': request})
-
         return Response({
-            'message': 'Registration successful',
-            'user': user_serializer.data,
-            'profile': profile_serializer.data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
         }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
@@ -99,7 +90,7 @@ def register(request):
 @permission_classes([AllowAny])
 def login(request):
     """
-    Login user and return JWT tokens
+    Login user and return JWT tokens only
     """
     try:
         # Get credentials
@@ -149,22 +140,12 @@ def login(request):
         if not hasattr(authenticated_user, 'profile'):
             UserProfile.objects.create(user=authenticated_user)
 
-        # Update daily streak and track gamification
-        streak_result = GamificationService.update_daily_streak(authenticated_user)
-
-        # Serialize user data
-        user_serializer = UserSerializer(authenticated_user, context={'request': request})
-        profile_serializer = UserProfileSerializer(authenticated_user.profile, context={'request': request})
+        # Update daily streak (runs in background, no need to return)
+        GamificationService.update_daily_streak(authenticated_user)
 
         return Response({
-            'message': 'Login successful',
-            'user': user_serializer.data,
-            'profile': profile_serializer.data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            },
-            'gamification': streak_result
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
@@ -198,16 +179,11 @@ def logout(request):
 @api_view(['GET'])
 def get_current_user(request):
     """
-    Get current authenticated user
+    Get current authenticated user (basic info only)
     """
     try:
         user_serializer = UserSerializer(request.user, context={'request': request})
-        profile_serializer = UserProfileSerializer(request.user.profile, context={'request': request})
-        
-        return Response({
-            'user': user_serializer.data,
-            'profile': profile_serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response(user_serializer.data, status=status.HTTP_200_OK)
     except Exception as e:
         return Response(
             {'error': str(e)},

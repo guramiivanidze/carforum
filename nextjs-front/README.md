@@ -1,24 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Car Forum - Next.js Frontend
 
-## Getting Started
+Modern forum application built with Next.js 16, React 19, TypeScript, and Tailwind CSS.
 
-First, run the development server:
+## 🚀 Quick Start
+
+### Local Development
 
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Production Build
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Build for production
+npm run build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Start production server
+npm start
+```
+
+## 📦 Deployment to Render
+
+See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) for complete deployment guide.
+
+### Quick Deploy Steps
+
+1. Push to GitHub
+2. Create Web Service on Render
+3. Configure build: `npm install && npm run build`
+4. Configure start: `npm start`
+5. Add environment variables
+6. Update backend CORS settings
+
+## 🛠️ Tech Stack
+
+- **Framework:** Next.js 16 (App Router)
+- **UI:** React 19
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS 4
+- **Icons:** React Icons
+- **Rich Text:** TipTap
+- **HTTP Client:** Axios
+
+## 🌟 Features
+
+- 🏠 Home page with categories and topics
+- 🔍 Advanced search (topics, users, categories)
+- 💬 Topic discussions with replies
+- 👤 User profiles and authentication
+- 🏆 Gamification system
+- 📊 Forum statistics
+- 🔥 Hot topics widget
+- 👑 Top contributors widget
+
+## 📚 Documentation
+
+- [Full Deployment Guide](./RENDER_DEPLOYMENT.md)
+- [Quick Checklist](./DEPLOYMENT_CHECKLIST.md)
 
 ## Learn More
 
@@ -27,7 +72,6 @@ To learn more about Next.js, take a look at the following resources:
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
 ## Deploy on Vercel
 

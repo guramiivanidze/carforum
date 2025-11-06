@@ -2,6 +2,9 @@
 
 This document explains how to set up environment variables for the Next.js frontend.
 
+> **📖 Related Documentation:**
+> - [Centralized API Configuration](./CENTRALIZED_API_CONFIG.md) - Learn about the centralized API URL management system
+
 ## 📁 Environment Files
 
 We use different environment files for different scenarios:

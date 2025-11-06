@@ -110,16 +110,21 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   }
 
   try {
-    const apiUrl = `${API_URL}/site-settings/`;
+    // Ensure API URL has protocol
+    let apiUrl = API_URL;
+    if (!apiUrl.startsWith('http')) {
+      apiUrl = `https://${apiUrl}`;
+    }
+    
+    const fullUrl = `${apiUrl}/site-settings/`;
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🌐 Fetching site settings...');
-    console.log('📍 API URL:', apiUrl);
+    console.log('📍 API URL:', fullUrl);
     console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
-    const response = await fetch(apiUrl, {
-      cache: 'no-store', // Always fetch fresh data
-      next: { revalidate: 0 }, // No caching in Next.js
+    const response = await fetch(fullUrl, {
+      next: { revalidate: 300 }, // Cache for 5 minutes
     });
 
     console.log('📡 Response status:', response.status, response.statusText);

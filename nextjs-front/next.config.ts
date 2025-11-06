@@ -6,8 +6,15 @@ const nextConfig: NextConfig = {
   
   // Image optimization
   images: {
-    domains: ['localhost', 'carforum.onrender.com'],
     remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'carforum.onrender.com',
+      },
       {
         protocol: 'https',
         hostname: '**',

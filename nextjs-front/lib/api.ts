@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { getApiUrl } from './config';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = getApiUrl();
 
 // Create axios instance with default config
 const api = axios.create({

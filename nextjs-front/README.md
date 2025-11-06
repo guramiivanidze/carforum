@@ -4,17 +4,29 @@ Modern forum application built with Next.js 16, React 19, TypeScript, and Tailwi
 
 ## 🚀 Quick Start
 
+### Prerequisites
+
+1. **Node.js**: Version 18+ required
+2. **Django Backend**: Must be running on `http://localhost:8000`
+3. **Environment Variables**: Set up local environment file
+
 ### Local Development
 
 ```bash
-# Install dependencies
+# 1. Install dependencies
 npm install
 
-# Run development server
+# 2. Set up environment variables (first time only)
+cp .env.example .env.local
+# Or see ENVIRONMENT.md for detailed setup
+
+# 3. Run development server
 npm run dev
 
-# Open http://localhost:3000
+# 4. Open http://localhost:3000
 ```
+
+See **[ENVIRONMENT.md](./ENVIRONMENT.md)** for complete environment variable setup guide.
 
 ### Production Build
 

@@ -9,7 +9,9 @@
  * - Content settings (pagination, features)
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+import { getApiUrl, getSiteUrl } from './config';
+
+const API_URL = getApiUrl();
 
 export interface SiteSettings {
   // SEO
@@ -110,19 +112,13 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   }
 
   try {
-    // Ensure API URL has protocol
-    let apiUrl = API_URL;
-    if (!apiUrl.startsWith('http')) {
-      apiUrl = `https://${apiUrl}`;
-    }
-    
-    const fullUrl = `${apiUrl}/site-settings/`;
+    const fullUrl = `${API_URL}/site-settings/`;
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🌐 Fetching site settings...');
     console.log('📍 API URL:', fullUrl);
     console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
+
     const response = await fetch(fullUrl, {
       next: { revalidate: 300 }, // Cache for 5 minutes
     });

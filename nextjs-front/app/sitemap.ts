@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { getSiteSettings } from '@/lib/siteSettings';
+import { buildApiUrl, getSiteUrl } from '@/lib/config';
 
 // Set dynamic config for sitemap generation
 export const dynamic = 'force-dynamic';
@@ -8,7 +9,7 @@ export const revalidate = 3600; // Revalidate every hour
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Get site URL from admin settings
   const settings = await getSiteSettings();
-  const baseUrl = settings.site_url || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const baseUrl = settings.site_url || getSiteUrl();
 
   // Static pages
   const staticPages = [
@@ -35,11 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Fetch categories
   let categoryPages: MetadataRoute.Sitemap = [];
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-    // Ensure URL has protocol
-    const categoriesUrl = apiUrl.startsWith('http') 
-      ? `${apiUrl}/categories/` 
-      : `https://${apiUrl}/categories/`;
+    const categoriesUrl = buildApiUrl('/categories/');
     
     console.log('Fetching categories from:', categoriesUrl);
     
@@ -62,11 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Fetch topics (limit to recent 1000 for performance)
   let topicPages: MetadataRoute.Sitemap = [];
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-    // Ensure URL has protocol
-    const topicsUrl = apiUrl.startsWith('http') 
-      ? `${apiUrl}/topics/?page_size=1000` 
-      : `https://${apiUrl}/topics/?page_size=1000`;
+    const topicsUrl = buildApiUrl('/topics/?page_size=1000');
     
     console.log('Fetching topics from:', topicsUrl);
     

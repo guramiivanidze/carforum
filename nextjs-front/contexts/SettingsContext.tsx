@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { SiteSettings, getCachedSettings } from '@/lib/siteSettings';
+import { buildApiUrl } from '@/lib/config';
 
 interface SettingsContextType {
   settings: SiteSettings;
@@ -18,8 +19,7 @@ export function SettingsProvider({ children, initialSettings }: { children: Reac
   const refreshSettings = async () => {
     setIsLoading(true);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-      const response = await fetch(`${API_URL}/forum/site-settings/`, {
+      const response = await fetch(buildApiUrl('/forum/site-settings/'), {
         cache: 'no-store',
       });
 

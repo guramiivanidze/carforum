@@ -24,13 +24,13 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/categories" className="text-gray-400 hover:text-white text-sm">
+                <Link href="/#categories" className="text-gray-400 hover:text-white text-sm">
                   Categories
                 </Link>
               </li>
               <li>
-                <Link href="/leaderboard" className="text-gray-400 hover:text-white text-sm">
-                  Leaderboard
+                <Link href="/search" className="text-gray-400 hover:text-white text-sm">
+                  Search
                 </Link>
               </li>
             </ul>
@@ -41,19 +41,19 @@ export default function Footer() {
             <h3 className="text-lg font-bold mb-4">Community</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/guidelines" className="text-gray-400 hover:text-white text-sm">
-                  Community Guidelines
+                <Link href="/create-topic" className="text-gray-400 hover:text-white text-sm">
+                  Create Topic
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="text-gray-400 hover:text-white text-sm">
-                  FAQ
-                </Link>
+                <span className="text-gray-500 text-sm cursor-not-allowed">
+                  Guidelines (Coming Soon)
+                </span>
               </li>
               <li>
-                <Link href="/contact" className="text-gray-400 hover:text-white text-sm">
-                  Contact Us
-                </Link>
+                <span className="text-gray-500 text-sm cursor-not-allowed">
+                  FAQ (Coming Soon)
+                </span>
               </li>
             </ul>
           </div>

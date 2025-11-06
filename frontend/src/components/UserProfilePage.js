@@ -600,7 +600,7 @@ function UserProfilePage() {
             <div className="profile-name-row">
               <div className="profile-names">
                 <h1 className="profile-display-name">{profile.username}</h1>
-                <p className="profile-handle">@{profile.username.toLowerCase().replace(' ', '_')}</p>
+                <p className="profile-handle">@{profile.username?.toLowerCase().replace(' ', '_') || 'user'}</p>
               </div>
               {!isOwnProfile && (
                 <div className="profile-action-buttons">

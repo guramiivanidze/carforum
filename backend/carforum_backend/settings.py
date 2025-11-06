@@ -80,7 +80,7 @@ INSTALLED_APPS = [
     # 'django_extensions'  # Commented out - not installed
 ]
 
-if DEBUG:
+if not DEBUG:
     INSTALLED_APPS.append('django_extensions')
 
 MIDDLEWARE = [

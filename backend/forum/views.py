@@ -720,6 +720,40 @@ class UserProfileViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        try:
+            # Validate file type
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+            if user_image.content_type not in allowed_types:
+                return Response(
+                    {'error': 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate file size (max 5MB)
+            max_size = 5 * 1024 * 1024  # 5MB in bytes
+            if user_image.size > max_size:
+                return Response(
+                    {'error': 'File size too large. Maximum allowed size is 5MB.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Save the image to the profile
+            profile.user_image = user_image
+            profile.save()
+            
+            # Return success response with updated profile data
+            serializer = self.get_serializer(profile)
+            return Response({
+                'message': 'Profile image uploaded successfully.',
+                'profile': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to upload image: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def update_profile(self, request, pk=None):
         """Update user profile (first_name, last_name, bio, social media URLs)"""

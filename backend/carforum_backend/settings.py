@@ -38,11 +38,8 @@ if not DEBUG:
     if SECRET_KEY == default_key:
         raise ValueError("You must set a secure SECRET_KEY in production!")
 
-ALLOWED_HOSTS = config(
-    'ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
-
 # Parse ALLOWED_HOSTS from env (comma-separated) and normalize values
-raw_allowed = config('ALLOWED_HOSTS', default='localhost,127.0.0.1')
+raw_allowed = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,carforum.onrender.com')
 ALLOWED_HOSTS = [h.strip() for h in raw_allowed.split(',') if h.strip()]
 
 # Ensure common local hosts are present when debugging to avoid DisallowedHost
@@ -53,8 +50,13 @@ if DEBUG:
 
 # Allow Render.com domain in production
 if not DEBUG:
+    # Add the Render backend domain
+    if 'carforum.onrender.com' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('carforum.onrender.com')
+    
+    # Add from environment variable if set
     RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-    if RENDER_EXTERNAL_HOSTNAME:
+    if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 
@@ -218,17 +220,12 @@ if DEBUG:
     # Allow all origins in development for easier testing
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    # In production, only allow specific origins from env
-    cors_origins_raw = config(
-        'CORS_ALLOWED_ORIGINS',
-        default='http://localhost:3000,http://127.0.0.1:3000,https://carforum-nextjs.onrender.com'
+    # In production, read from environment variable
+    cors_origins_env = config(
+        'CORS_ALLOWED_ORIGINS', 
+        default='https://carforum-nextjs.onrender.com,http://localhost:3000,http://127.0.0.1:3000'
     )
-    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_raw.split(',') if origin.strip()]
-    
-    # Always include the Next.js frontend on Render
-    nextjs_url = 'https://carforum-nextjs.onrender.com'
-    if nextjs_url not in CORS_ALLOWED_ORIGINS:
-        CORS_ALLOWED_ORIGINS.append(nextjs_url)
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
 
 CORS_ALLOW_CREDENTIALS = True
 

@@ -225,7 +225,13 @@ else:
         'CORS_ALLOWED_ORIGINS', 
         default='https://carforum-nextjs.onrender.com,http://localhost:3000,http://127.0.0.1:3000'
     )
-    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
+    
+    # Clean up the string - remove brackets, quotes, and split by comma
+    cors_origins_env = cors_origins_env.strip()
+    # Remove Python list syntax if present (e.g., "['url']" -> "url")
+    cors_origins_env = cors_origins_env.strip("[]'\"")
+    
+    CORS_ALLOWED_ORIGINS = [origin.strip().strip("'\"") for origin in cors_origins_env.split(',') if origin.strip()]
 
 CORS_ALLOW_CREDENTIALS = True
 

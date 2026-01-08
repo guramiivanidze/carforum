@@ -8,29 +8,29 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* About */}
           <div>
-            <h3 className="text-lg font-bold mb-4">About Car Forum</h3>
+            <h3 className="text-lg font-bold mb-4">ავტო ფორუმის შესახებ</h3>
             <p className="text-gray-400 text-sm">
-              A vibrant community for car enthusiasts to discuss, share knowledge, and connect with fellow automotive lovers.
+              ავტომობილების მოყვარულთათვის შექმნილი აქტიური საზოგადოება, სადაც შეგიძლიათ განიხილოთ, გაზიაროთ ცოდნა და დაუკავშირდეთ სხვა ავტოინდუსტრიის მოყვარულებს.
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-bold mb-4">Quick Links</h3>
+            <h3 className="text-lg font-bold mb-4">სწრაფი ლინკები</h3>
             <ul className="space-y-2">
               <li>
                 <Link href="/" className="text-gray-400 hover:text-white text-sm">
-                  Home
+                  მთავარი
                 </Link>
               </li>
               <li>
                 <Link href="/#categories" className="text-gray-400 hover:text-white text-sm">
-                  Categories
+                  კატეგორიები
                 </Link>
               </li>
               <li>
                 <Link href="/search" className="text-gray-400 hover:text-white text-sm">
-                  Search
+                  ძებნა
                 </Link>
               </li>
             </ul>
@@ -38,29 +38,29 @@ export default function Footer() {
 
           {/* Community */}
           <div>
-            <h3 className="text-lg font-bold mb-4">Community</h3>
+            <h3 className="text-lg font-bold mb-4">საზოგადოება</h3>
             <ul className="space-y-2">
               <li>
                 <Link href="/create-topic" className="text-gray-400 hover:text-white text-sm">
-                  Create Topic
+                  თემის შექმნა
                 </Link>
               </li>
               <li>
-                <span className="text-gray-500 text-sm cursor-not-allowed">
-                  Guidelines (Coming Soon)
-                </span>
+                <Link href="/rules" className="text-gray-400 hover:text-white text-sm">
+                  წესები
+                </Link>
               </li>
               <li>
-                <span className="text-gray-500 text-sm cursor-not-allowed">
-                  FAQ (Coming Soon)
-                </span>
+                <Link href="/faq" className="text-gray-400 hover:text-white text-sm">
+                  ხშირად დასმული კითხვები
+                </Link>
               </li>
             </ul>
           </div>
 
           {/* Social */}
           <div>
-            <h3 className="text-lg font-bold mb-4">Connect With Us</h3>
+            <h3 className="text-lg font-bold mb-4">ჩვენთან დაკავშირება</h3>
             <div className="flex gap-4">
               <a href="#" className="text-gray-400 hover:text-white">
                 <FaGithub size={24} />
@@ -77,7 +77,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-700 mt-8 pt-6 text-center">
           <p className="text-gray-400 text-sm">
-            © {new Date().getFullYear()} Car Forum. All rights reserved.
+            © {new Date().getFullYear()} ავტო ფორუმი. ყველა უფლება დაცულია.
           </p>
         </div>
       </div>

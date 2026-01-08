@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
-    Category, CategoryRule, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
-    TopicImage, Poll, PollOption, PollVote, Tag, ReplyImage, SiteSettings
+    Translation, Category, CategoryRule, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
+    TopicImage, Poll, PollOption, PollVote, Tag, ReplyImage, SiteSettings, FAQ, FAQCategory
 )
 
 
@@ -327,12 +327,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     is_following = serializers.SerializerMethodField()
+    level = serializers.SerializerMethodField()
+    level_name = serializers.SerializerMethodField()
+    xp = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'points', 'bio', 'skills', 'date_joined', 'user_image', 'user_image_url',
                   'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count', 'following_count', 'is_following',
-                  'facebook_url', 'linkedin_url', 'tiktok_url']
+                  'facebook_url', 'linkedin_url', 'tiktok_url', 'level', 'level_name', 'xp']
         read_only_fields = ['id', 'username', 'email', 'first_name', 'last_name', 'points', 'date_joined', 'user_image_url',
                             'topics_count', 'replies_count', 'likes_given', 'likes_received', 'followers_count', 'following_count', 'is_following']
     
@@ -397,6 +400,24 @@ class UserProfileSerializer(serializers.ModelSerializer):
             return False
         from .models import Follow
         return Follow.objects.filter(follower=request.user, following=obj.user).exists()
+    
+    def get_level(self, obj):
+        """Get user's level number"""
+        if hasattr(obj.user, 'level'):
+            return obj.user.level.level
+        return 1
+    
+    def get_level_name(self, obj):
+        """Get user's level name"""
+        if hasattr(obj.user, 'level'):
+            return obj.user.level.level_name
+        return 'Newbie'
+    
+    def get_xp(self, obj):
+        """Get user's total XP"""
+        if hasattr(obj.user, 'level'):
+            return obj.user.level.xp
+        return 0
 
 
 class ReportReasonSerializer(serializers.ModelSerializer):
@@ -510,4 +531,18 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
         if obj.og_image:
             return obj.og_image.url
         return None
+
+
+class FAQCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FAQCategory
+        fields = ['id', 'name', 'order', 'is_active', 'created_at']
+
+
+class FAQSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    
+    class Meta:
+        model = FAQ
+        fields = ['id', 'category', 'category_name', 'question', 'answer', 'order', 'is_active', 'created_at', 'updated_at']
 

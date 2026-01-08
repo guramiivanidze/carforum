@@ -4,15 +4,15 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth.models import User
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Subquery, OuterRef
 from .models import (
     Category, Topic, Reply, UserProfile, ReportReason, Report, Bookmark, 
-    Poll, PollOption, PollVote, TopicImage, Tag, SiteSettings
+    Poll, PollOption, PollVote, TopicImage, Tag, SiteSettings, FAQ, FAQCategory
 )
 from .serializers import (
     CategorySerializer, TopicSerializer, TopicDetailSerializer,
     ReplySerializer, UserSerializer, UserProfileSerializer, ReportReasonSerializer, ReportSerializer, 
-    BookmarkSerializer, PollSerializer, TagSerializer, SiteSettingsSerializer
+    BookmarkSerializer, PollSerializer, TagSerializer, SiteSettingsSerializer, FAQSerializer, FAQCategorySerializer
 )
 from .pagination import CustomPageNumberPagination
 from gamification.services import GamificationService
@@ -701,8 +701,26 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def top_members(self, request):
-        """Get top members by points"""
-        top_profiles = UserProfile.objects.order_by('-points')[:10]
+        """Get top members by level, then by activity"""
+        from gamification.models import UserLevel
+        
+        # Get profiles with their level data
+        top_profiles = UserProfile.objects.select_related('user').annotate(
+            user_level=Subquery(
+                UserLevel.objects.filter(user=OuterRef('user')).values('level')[:1]
+            ),
+            user_xp=Subquery(
+                UserLevel.objects.filter(user=OuterRef('user')).values('xp')[:1]
+            ),
+            topics_count_calc=Count('user__topics', distinct=True),
+            replies_count_calc=Count('user__replies', filter=Q(user__replies__is_hidden=False), distinct=True)
+        ).order_by(
+            '-user_level',  # First by level (descending)
+            '-user_xp',     # Then by XP (descending)
+            '-topics_count_calc',  # Then by topics count
+            '-replies_count_calc'  # Then by replies count
+        )[:10]
+        
         serializer = self.get_serializer(top_profiles, many=True)
         return Response(serializer.data)
     
@@ -1258,3 +1276,17 @@ def get_site_settings(request):
     settings = SiteSettings.load()
     serializer = SiteSettingsSerializer(settings)
     return Response(serializer.data)
+
+
+class FAQCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for FAQ Categories (read-only for public)"""
+    queryset = FAQCategory.objects.filter(is_active=True)
+    serializer_class = FAQCategorySerializer
+    pagination_class = None  # Return all categories without pagination
+
+
+class FAQViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for FAQs (read-only for public)"""
+    queryset = FAQ.objects.filter(is_active=True).select_related('category')
+    serializer_class = FAQSerializer
+    pagination_class = None  # Return all FAQs without pagination

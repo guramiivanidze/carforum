@@ -49,8 +49,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.setItem('access_token', data.access);
         localStorage.setItem('refresh_token', data.refresh);
       }
+      // Small delay to ensure localStorage is updated before fetching user
+      await new Promise(resolve => setTimeout(resolve, 100));
       await fetchUser();
     } catch (error) {
+      console.error('Login error:', error);
       throw error;
     }
   };

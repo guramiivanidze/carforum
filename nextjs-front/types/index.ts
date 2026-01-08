@@ -225,3 +225,23 @@ export interface Report {
   status: 'pending' | 'resolved' | 'dismissed';
   created_at: string;
 }
+
+export interface FAQ {
+  id: number;
+  category: number;
+  category_name: string;
+  question: string;
+  answer: string;
+  order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FAQCategory {
+  id: number;
+  name: string;
+  order: number;
+  is_active: boolean;
+  created_at: string;
+}

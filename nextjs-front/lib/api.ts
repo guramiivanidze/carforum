@@ -343,4 +343,10 @@ export const createReport = async (replyId: number, reasonId: number, additional
   return response.data;
 };
 
+// FAQ APIs
+export const getFAQs = async () => {
+  const response = await api.get('/faqs/');
+  return response.data;
+};
+
 export default api;

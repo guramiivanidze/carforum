@@ -29,7 +29,7 @@ export default function Header() {
         <div className="flex items-center justify-between py-4">
           {/* Logo */}
           <Link href="/" className="text-2xl font-bold text-blue-600 hover:text-blue-700">
-            Car Forum
+            ავტო ფორუმი
           </Link>
 
           {/* Search Bar */}
@@ -39,7 +39,7 @@ export default function Header() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search topics, categories..."
+                placeholder="მოძებნე თემა, მომხმარებელი ..."
                 className="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -49,14 +49,14 @@ export default function Header() {
           {/* Navigation */}
           <nav className="flex items-center gap-6">
             {loading ? (
-              <div className="text-gray-400">Loading...</div>
+              <div className="text-gray-400">იტვირთება...</div>
             ) : user ? (
               <>
                 <Link
                   href="/create-topic"
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
                 >
-                  Create Topic
+                  თემის შექმნა
                 </Link>
                 
                 <Link href="/notifications" className="text-gray-600 hover:text-blue-600 relative">
@@ -72,7 +72,7 @@ export default function Header() {
                   className="text-gray-600 hover:text-red-600 flex items-center gap-2"
                 >
                   <FaSignOutAlt size={20} />
-                  <span>Logout</span>
+                  <span>გამოსვლა</span>
                 </button>
               </>
             ) : (
@@ -82,13 +82,13 @@ export default function Header() {
                   className="text-gray-600 hover:text-blue-600 flex items-center gap-2"
                 >
                   <FaSignInAlt size={20} />
-                  <span>Login</span>
+                  <span>შესვლა</span>
                 </Link>
                 <Link
                   href="/register"
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
                 >
-                  Register
+                  რეგისტრაცია
                 </Link>
               </>
             )}

@@ -82,7 +82,7 @@ export default function SearchPage() {
         <div className="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-200">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 flex items-center gap-2">
             <FaSearch className="text-blue-600" />
-            Search Forum
+            მოძებნე ფორუმზე
           </h1>
           
           {/* Search Bar */}
@@ -99,7 +99,7 @@ export default function SearchPage() {
               type="submit"
               className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
             >
-              Search
+              ძებნა
             </button>
           </form>
 
@@ -107,10 +107,10 @@ export default function SearchPage() {
           {queryParam && (
             <div className="mt-4 text-sm text-gray-600">
               {loading ? (
-                <span>Searching...</span>
+                <span>იძებნება...</span>
               ) : (
                 <span>
-                  Found <strong className="text-blue-600">{results.total}</strong> results for "{queryParam}"
+                  ნაპოვნია <strong className="text-blue-600">{results.total}</strong> შედეგი "{queryParam}"-თვის
                 </span>
               )}
             </div>
@@ -129,7 +129,7 @@ export default function SearchPage() {
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                All ({results.total})
+                ყველა ({results.total})
               </button>
               <button
                 onClick={() => setActiveTab('topics')}
@@ -140,7 +140,7 @@ export default function SearchPage() {
                 }`}
               >
                 <FaComments className="inline mr-2" />
-                Topics ({results.topics.length})
+                თემები ({results.topics.length})
               </button>
               <button
                 onClick={() => setActiveTab('users')}
@@ -151,7 +151,7 @@ export default function SearchPage() {
                 }`}
               >
                 <FaUser className="inline mr-2" />
-                Users ({results.users.length})
+                მომხმარებლები ({results.users.length})
               </button>
               <button
                 onClick={() => setActiveTab('categories')}
@@ -162,7 +162,7 @@ export default function SearchPage() {
                 }`}
               >
                 <FaFolder className="inline mr-2" />
-                Categories ({results.categories.length})
+                კატეგორიები ({results.categories.length})
               </button>
             </div>
           </div>
@@ -172,13 +172,13 @@ export default function SearchPage() {
         {loading ? (
           <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-200">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Searching...</p>
+            <p className="text-gray-600">იძებნება...</p>
           </div>
         ) : queryParam && !hasResults ? (
           <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-200">
             <FaSearch className="text-4xl text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No results found</h3>
-            <p className="text-gray-600">Try different keywords or filters</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">შედეგები ვერ მოიძებნა</h3>
+            <p className="text-gray-600">სცადეთ სხვა საკვანძო სიტყვები ან ფილტრები</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -187,7 +187,7 @@ export default function SearchPage() {
               <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
                 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <FaComments className="text-blue-600" />
-                  Topics ({filteredResults.topics.length})
+                  თემები ({filteredResults.topics.length})
                 </h2>
                 <div className="space-y-3">
                   {filteredResults.topics.map((topic) => (
@@ -300,7 +300,7 @@ export default function SearchPage() {
                           <p className="text-xs text-gray-600 truncate">{user.bio}</p>
                         )}
                         <p className="text-xs text-gray-500 mt-1">
-                          {user.points || 0} points
+                          {user.points || 0} ქულა
                         </p>
                       </div>
                     </Link>
@@ -335,9 +335,9 @@ export default function SearchPage() {
                             {category.description}
                           </p>
                           <div className="flex items-center gap-3 text-xs text-gray-500">
-                            <span>{category.topics_count || 0} topics</span>
+                            <span>{category.topics_count || 0} თემები</span>
                             {category.replies_count !== undefined && (
-                              <span>{category.replies_count} replies</span>
+                              <span>{category.replies_count} პასუხები</span>
                             )}
                           </div>
                         </div>
@@ -354,12 +354,12 @@ export default function SearchPage() {
         {!queryParam && (
           <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-200">
             <FaSearch className="text-5xl text-gray-300 mx-auto mb-4" />
-            <h3 className="text-2xl font-semibold text-gray-900 mb-2">Start Searching</h3>
+            <h3 className="text-2xl font-semibold text-gray-900 mb-2">ძიების დაწყება</h3>
             <p className="text-gray-600 mb-6">
-              Enter keywords to search for topics, users, and categories
+              შეიყვანეთ საკვანძო სიტყვები თემების, მომხმარებლების და კატეგორიების საძიებლად
             </p>
             <div className="flex flex-wrap gap-2 justify-center">
-              <span className="text-xs text-gray-500">Popular searches:</span>
+              <span className="text-xs text-gray-500">პოპულარული ძიებები:</span>
               {['Engine', 'Transmission', 'Maintenance', 'Electric'].map((term) => (
                 <button
                   key={term}

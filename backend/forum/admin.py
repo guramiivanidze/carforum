@@ -2,8 +2,8 @@ from django.contrib import admin
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 from .models import (
-    Category, CategoryRule, Tag, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
-    TopicImage, Poll, PollOption, PollVote, ReplyImage, SiteSettings
+    Translation, Category, CategoryRule, Tag, Topic, Reply, UserProfile, ReportReason, Report, Bookmark,
+    TopicImage, Poll, PollOption, PollVote, ReplyImage, SiteSettings, FAQ, FAQCategory
 )
 
 
@@ -97,6 +97,48 @@ class PollVoteResource(resources.ModelResource):
         model = PollVote
         import_id_fields = ['id']
         fields = ('id', 'user__username', 'poll_option__text', 'created_at')
+
+
+class TranslationResource(resources.ModelResource):
+    class Meta:
+        model = Translation
+        import_id_fields = ['key']
+        fields = ('key', 'text_ka', 'text_en', 'description', 'is_active', 'created_at', 'updated_at')
+
+
+@admin.register(Translation)
+class TranslationAdmin(ImportExportModelAdmin):
+    resource_class = TranslationResource
+    list_display = ['key', 'text_ka_short', 'text_en_short', 'is_active', 'updated_at']
+    list_filter = ['is_active', 'created_at', 'updated_at']
+    search_fields = ['key', 'text_ka', 'text_en', 'description']
+    list_editable = ['is_active']
+    readonly_fields = ['created_at', 'updated_at']
+    fieldsets = (
+        ('Identification', {
+            'fields': ('key', 'description')
+        }),
+        ('Translations', {
+            'fields': ('text_ka', 'text_en')
+        }),
+        ('Settings', {
+            'fields': ('is_active',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def text_ka_short(self, obj):
+        """Display shortened Georgian text"""
+        return obj.text_ka[:50] + '...' if len(obj.text_ka) > 50 else obj.text_ka
+    text_ka_short.short_description = 'Georgian Text'
+    
+    def text_en_short(self, obj):
+        """Display shortened English text"""
+        return obj.text_en[:50] + '...' if len(obj.text_en) > 50 else obj.text_en
+    text_en_short.short_description = 'English Text'
 
 
 class CategoryRuleInline(admin.TabularInline):
@@ -389,3 +431,38 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             from django.shortcuts import redirect
             return redirect('admin:forum_sitesettings_change', obj.pk)
         return super().changelist_view(request, extra_context)
+
+
+@admin.register(FAQCategory)
+class FAQCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'order', 'is_active', 'created_at']
+    list_filter = ['is_active']
+    search_fields = ['name']
+    list_editable = ['order', 'is_active']
+    ordering = ['order', 'name']
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ['category', 'question_preview', 'order', 'is_active', 'created_at']
+    list_filter = ['category', 'is_active', 'created_at']
+    search_fields = ['question', 'answer']
+    list_editable = ['order', 'is_active']
+    ordering = ['category__order', 'order', 'created_at']
+    
+    fieldsets = (
+        (None, {
+            'fields': ('category', 'question', 'answer', 'order', 'is_active')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def question_preview(self, obj):
+        """Show first 60 characters of question"""
+        return obj.question[:60] + '...' if len(obj.question) > 60 else obj.question
+    question_preview.short_description = 'Question'

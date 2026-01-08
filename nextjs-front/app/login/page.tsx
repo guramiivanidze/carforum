@@ -23,7 +23,9 @@ export default function LoginPage() {
       await login(username, password);
       router.push('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || err.response?.data?.detail || 'Login failed. Please try again.');
+      console.error('Login error details:', err);
+      const errorMessage = err.response?.data?.error || err.response?.data?.detail || err.message || 'Login failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

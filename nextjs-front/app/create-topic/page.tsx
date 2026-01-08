@@ -183,7 +183,7 @@ export default function CreateTopicPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">იტვირთება...</p>
         </div>
       </div>
     );
@@ -193,7 +193,7 @@ export default function CreateTopicPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Create New Topic</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">შექმენი ახალი თემა</h1>
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -205,7 +205,7 @@ export default function CreateTopicPage() {
             {/* Title */}
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                Title *
+                სათაური *
               </label>
               <input
                 type="text"
@@ -213,16 +213,16 @@ export default function CreateTopicPage() {
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter a descriptive title..."
+                placeholder="შეიყვანეთ აღწერითი სათაური..."
                 maxLength={200}
               />
-              <p className="mt-1 text-sm text-gray-500">{formData.title.length}/200 characters</p>
+              <p className="mt-1 text-sm text-gray-500">{formData.title.length}/200 სიმბოლო</p>
             </div>
 
             {/* Category */}
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                Category *
+                კატეგორია *
               </label>
               <select
                 id="category"
@@ -230,7 +230,7 @@ export default function CreateTopicPage() {
                 onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="">Select a category...</option>
+                <option value="">აირჩიეთ კატეგორია...</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.icon} {category.title || category.name}
@@ -242,7 +242,7 @@ export default function CreateTopicPage() {
             {/* Tags */}
             <div>
               <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-2">
-                Tags (optional)
+                ტეგები (არასავალდებულო)
               </label>
               <div className="flex gap-2 mb-2">
                 <input
@@ -257,14 +257,14 @@ export default function CreateTopicPage() {
                     }
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Add tags (press Enter to add)..."
+                  placeholder="დაამატე ტეგები (დააჭირე Enter დამატებისთვის)..."
                 />
                 <button
                   type="button"
                   onClick={handleAddTag}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
                 >
-                  Add Tag
+                  ტეგის დამატება
                 </button>
               </div>
               
@@ -293,22 +293,22 @@ export default function CreateTopicPage() {
             {/* Content - Rich Text Editor */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Content *
+                შინაარსი *
               </label>
               <RichTextEditor
                 content={formData.content}
                 onChange={(html) => setFormData(prev => ({ ...prev, content: html }))}
-                placeholder="Share your thoughts, questions, or information..."
+                placeholder="გააზიარეთ თქვენი იდეები და კითხვები აქ..."
               />
             </div>
 
             {/* Images Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Images (optional)
+                სურათები (არასავალდებულო)
               </label>
               <p className="text-sm text-gray-500 mb-3">
-                Upload up to 5 images (max 5MB each)
+                მაქსიმუმ 5 სურათი ატვირთეთ (მაქსიმუმ 5MB თითოეული)
               </p>
               
               {/* Upload Button */}
@@ -318,7 +318,7 @@ export default function CreateTopicPage() {
                   className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 cursor-pointer transition"
                 >
                   <FaImage />
-                  <span>Choose Images</span>
+                  <span>სურათების არჩევა</span>
                   <input
                     type="file"
                     id="image-upload"
@@ -330,7 +330,7 @@ export default function CreateTopicPage() {
                   />
                 </label>
                 <span className="ml-3 text-sm text-gray-500">
-                  {images.length}/5 images
+                  {images.length}/5 სურათი
                 </span>
               </div>
 
@@ -375,7 +375,7 @@ export default function CreateTopicPage() {
                 disabled={submitting}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
-                {submitting ? 'Creating...' : 'Create Topic'}
+                {submitting ? 'შექმნილია...' : 'შექმნა თემის'}
               </button>
               
               <button
@@ -384,7 +384,7 @@ export default function CreateTopicPage() {
                 disabled={submitting}
                 className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
+                გაუქმება
               </button>
             </div>
           </form>

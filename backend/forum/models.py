@@ -3,6 +3,48 @@ from django.contrib.auth.models import User
 from cloudinary.models import CloudinaryField
 
 
+class Translation(models.Model):
+    """
+    Model to store translatable text content for the frontend.
+    Each entry has a unique key and translations in Georgian and English.
+    """
+    # Unique identifier for the text (e.g., 'header.search_placeholder', 'login.title')
+    key = models.CharField(max_length=200, unique=True, db_index=True,
+                          help_text="Unique key to identify this translation (e.g., 'header.search_placeholder')")
+    
+    # Georgian translation
+    text_ka = models.TextField(verbose_name="Georgian Text",
+                              help_text="Text in Georgian language")
+    
+    # English translation
+    text_en = models.TextField(verbose_name="English Text",
+                              help_text="Text in English language")
+    
+    # Optional description for context
+    description = models.TextField(blank=True,
+                                  help_text="Description of where this text is used")
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True,
+                                   help_text="Whether this translation is active")
+    
+    class Meta:
+        ordering = ['key']
+        verbose_name = 'Translation'
+        verbose_name_plural = 'Translations'
+    
+    def __str__(self):
+        return f"{self.key}"
+    
+    def get_translation(self, language='ka'):
+        """Get translation for specific language"""
+        if language == 'en':
+            return self.text_en
+        return self.text_ka
+
+
 class Category(models.Model):
     """Forum categories"""
     icon = models.CharField(max_length=10, default='💬')
@@ -388,3 +430,38 @@ class SiteSettings(models.Model):
         """Load the singleton instance"""
         obj, created = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class FAQCategory(models.Model):
+    """FAQ Categories"""
+    name = models.CharField(max_length=100, unique=True)
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name = 'FAQ Category'
+        verbose_name_plural = 'FAQ Categories'
+    
+    def __str__(self):
+        return self.name
+
+
+class FAQ(models.Model):
+    """Frequently Asked Questions"""
+    category = models.ForeignKey(FAQCategory, on_delete=models.CASCADE, related_name='faqs')
+    question = models.TextField()
+    answer = models.TextField()
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['order', 'created_at']
+        verbose_name = 'FAQ'
+        verbose_name_plural = 'FAQs'
+    
+    def __str__(self):
+        return f"{self.category.name} - {self.question[:50]}"

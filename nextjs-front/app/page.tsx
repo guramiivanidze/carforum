@@ -120,9 +120,9 @@ export default function Home() {
           <div className="lg:col-span-3 space-y-4 md:space-y-6">
             {/* Welcome Section */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 text-white">
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">🚗 Welcome to Car Forum</h1>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">🚗 მოგესალმებით ავტომობილების ფორუმზე</h1>
               <p className="text-blue-100">
-                Join thousands of car enthusiasts discussing everything automotive.
+                შემოუერთდით ჩვენს საზოგადოებას, გაზიარეთ თქვენი ცოდნა და შეიძინეთ ახალი მეგობრები ავტოინდუსტრიაში!
               </p>
             </div>
 
@@ -130,10 +130,10 @@ export default function Home() {
             <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-xl p-6 md:p-8 border border-gray-200">
               <div className="flex items-center justify-between mb-6 md:mb-8">
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                  Explore Categories
+                  კატეგორიების დათვალიერება
                 </h2>
                 <div className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                  {categories.length} Categories
+                  {categories.length} კატეგორია
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -225,10 +225,10 @@ export default function Home() {
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg md:text-xl font-bold text-gray-900 flex items-center gap-2">
                     <span className="text-blue-600">📋</span>
-                    Latest Topics
+                    უახლესი თემები
                   </h2>
                   <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                    {totalTopics} Topics
+                    {totalTopics} თემა
                   </div>
                 </div>
               </div>
@@ -449,15 +449,15 @@ export default function Home() {
             <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200">
               <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2">
                 <span className="text-blue-600">📊</span>
-                Forum Stats
+                ფორუმის სტატისტიკა
               </h3>
               <div className="space-y-2.5">
                 <div className="flex justify-between items-center p-2 bg-gradient-to-r from-blue-50 to-transparent rounded-lg">
-                  <span className="text-sm text-gray-600 font-medium">Categories:</span>
+                  <span className="text-sm text-gray-600 font-medium">კატეგორიები:</span>
                   <span className="font-bold text-blue-600">{categories.length}</span>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-gradient-to-r from-purple-50 to-transparent rounded-lg">
-                  <span className="text-sm text-gray-600 font-medium">Topics:</span>
+                  <span className="text-sm text-gray-600 font-medium">თემები:</span>
                   <span className="font-bold text-purple-600">{totalTopics}</span>
                 </div>
                 {(() => {
@@ -482,7 +482,7 @@ export default function Home() {
             <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200">
               <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2">
                 <span className="text-orange-600">🔥</span>
-                Hot Topics
+                პოპულარული თემები
               </h3>
               <div className="space-y-2.5">
                 {hotTopics.length > 0 ? (
@@ -510,7 +510,7 @@ export default function Home() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-500 text-center py-2">No topics yet</p>
+                  <p className="text-xs text-gray-500 text-center py-2">ჯერ არ არის თემები</p>
                 )}
               </div>
             </div>
@@ -519,7 +519,7 @@ export default function Home() {
             <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl shadow-md p-5 border border-yellow-100">
               <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2">
                 <span className="text-yellow-600">👑</span>
-                Top Contributors
+                საუკეთესო მონაწილეები
               </h3>
               <div className="space-y-2.5">
                 {(() => {
@@ -578,7 +578,7 @@ export default function Home() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-gray-500 text-center py-2">No contributors yet</p>
+                    <p className="text-xs text-gray-500 text-center py-2">ჯერ არარიან მონაწილეები</p>
                   );
                 })()}
               </div>
@@ -588,7 +588,7 @@ export default function Home() {
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md p-5 border border-blue-100">
               <h3 className="text-base md:text-lg font-bold mb-4 flex items-center gap-2">
                 <span className="text-blue-600">🔗</span>
-                Quick Links
+                სწრაფი ლინკები
               </h3>
               <ul className="space-y-2">
                 <li>
@@ -597,7 +597,7 @@ export default function Home() {
                     className="flex items-center gap-2 text-sm text-gray-700 hover:text-blue-600 transition p-2 rounded-lg hover:bg-white"
                   >
                     <span>🏆</span>
-                    Top Members
+                    საუკეთესო წევრები
                   </Link>
                 </li>
                 <li>
@@ -606,7 +606,7 @@ export default function Home() {
                     className="flex items-center gap-2 text-sm text-gray-700 hover:text-blue-600 transition p-2 rounded-lg hover:bg-white"
                   >
                     <span>🏷️</span>
-                    Popular Tags
+                    პოპულარული ტეგები
                   </Link>
                 </li>
                 <li>
@@ -615,7 +615,7 @@ export default function Home() {
                     className="flex items-center gap-2 text-sm text-gray-700 hover:text-blue-600 transition p-2 rounded-lg hover:bg-white"
                   >
                     <span>📖</span>
-                    Community Guidelines
+                    საზოგადოების წესები
                   </Link>
                 </li>
               </ul>

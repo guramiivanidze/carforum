@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     CategoryViewSet, TagViewSet, TopicViewSet, ReplyViewSet, UserProfileViewSet, 
-    ReportReasonViewSet, ReportViewSet, search, vote_poll, get_site_settings
+    ReportReasonViewSet, ReportViewSet, FAQViewSet, FAQCategoryViewSet, search, vote_poll, get_site_settings
 )
 
 router = DefaultRouter()
@@ -13,6 +13,8 @@ router.register(r'replies', ReplyViewSet)
 router.register(r'profiles', UserProfileViewSet)
 router.register(r'report-reasons', ReportReasonViewSet)
 router.register(r'reports', ReportViewSet)
+router.register(r'faq-categories', FAQCategoryViewSet)
+router.register(r'faqs', FAQViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -119,12 +119,23 @@ class TopicViewSet(viewsets.ModelViewSet):
             if tag_names:
                 from django.utils.text import slugify
                 for tag_name in tag_names:
-                    if tag_name and tag_name.strip():
-                        tag, created = Tag.objects.get_or_create(
-                            name=tag_name.strip().lower(),
-                            defaults={'slug': slugify(tag_name.strip())}
-                        )
-                        tag_objects.append(tag.id)
+                    # Skip empty or whitespace-only tags
+                    if not tag_name or not tag_name.strip():
+                        continue
+                    
+                    cleaned_name = tag_name.strip().lower()
+                    tag_slug = slugify(cleaned_name)
+                    
+                    # Skip if slug is empty (e.g., special characters only)
+                    if not tag_slug:
+                        continue
+                    
+                    # Use slug as the unique identifier for get_or_create
+                    tag, created = Tag.objects.get_or_create(
+                        slug=tag_slug,
+                        defaults={'name': cleaned_name}
+                    )
+                    tag_objects.append(tag.id)
             
             if tag_objects:
                 topic_data['tag_ids'] = tag_objects
@@ -239,12 +250,23 @@ class TopicViewSet(viewsets.ModelViewSet):
             if tag_names:
                 from django.utils.text import slugify
                 for tag_name in tag_names:
-                    if tag_name and tag_name.strip():
-                        tag, created = Tag.objects.get_or_create(
-                            name=tag_name.strip().lower(),
-                            defaults={'slug': slugify(tag_name.strip())}
-                        )
-                        tag_objects.append(tag.id)
+                    # Skip empty or whitespace-only tags
+                    if not tag_name or not tag_name.strip():
+                        continue
+                    
+                    cleaned_name = tag_name.strip().lower()
+                    tag_slug = slugify(cleaned_name)
+                    
+                    # Skip if slug is empty (e.g., special characters only)
+                    if not tag_slug:
+                        continue
+                    
+                    # Use slug as the unique identifier for get_or_create
+                    tag, created = Tag.objects.get_or_create(
+                        slug=tag_slug,
+                        defaults={'name': cleaned_name}
+                    )
+                    tag_objects.append(tag.id)
             
             if tag_objects:
                 topic_data['tag_ids'] = tag_objects

@@ -40,9 +40,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     
     console.log('Fetching categories from:', categoriesUrl);
     
-    const categoriesRes = await fetch(categoriesUrl, {
-      next: { revalidate: 3600 } // Revalidate every hour
-    });
+    const categoriesRes = await fetch(categoriesUrl);
     if (categoriesRes.ok) {
       const categories = await categoriesRes.json();
       categoryPages = categories.map((category: any) => ({

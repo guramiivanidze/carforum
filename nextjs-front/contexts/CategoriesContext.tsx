@@ -25,7 +25,7 @@ export const CategoriesProvider = ({ children }: { children: React.ReactNode }) 
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
     // Return cached data if still valid
-    if (categories.length > 0 && now - lastFetch < CACHE_DURATION) {
+    if (now - lastFetch < CACHE_DURATION && lastFetch > 0) {
       return;
     }
 
@@ -44,7 +44,7 @@ export const CategoriesProvider = ({ children }: { children: React.ReactNode }) 
     } finally {
       setLoading(false);
     }
-  }, [categories.length, lastFetch]);
+  }, [lastFetch]);
 
   useEffect(() => {
     fetchCategories();

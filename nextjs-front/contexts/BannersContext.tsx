@@ -26,7 +26,7 @@ export const BannersProvider = ({ children }: { children: React.ReactNode }) => 
         const bannersData = data.results || data;
         setBanners(Array.isArray(bannersData) ? bannersData : []);
       } catch (error) {
-        console.error('Failed to fetch banners:', error);
+        console.error('Failed to fetch banners :', error);
         setBanners([]);
       } finally {
         setLoading(false);
